@@ -117,19 +117,12 @@ export default function LoginPage() {
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
-
-            {/* Demo Info */}
-            <div className="bg-slate-700/50 rounded-lg p-3 text-xs text-slate-300">
-              <p className="font-semibold mb-1">Demo Accounts:</p>
-              <p>Teacher: teacher_demo / DemoTeacher123!</p>
-              <p>Student: student_alimboeva / StudentDemo123!</p>
-            </div>
           </form>
         </div>
 
         {/* Footer */}
         <p className="text-center text-slate-500 text-sm mt-6">
-          Need help? Contact your teacher
+          Yordam kerakmi? O'qituvchingizga murojaat qiling
         </p>
       </div>
     </div>

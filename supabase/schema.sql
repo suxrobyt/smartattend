@@ -91,17 +91,6 @@ create policy "Students can read their own profile"
   for select
   using (auth.uid() = user_id);
 
-create policy "Teachers can read students in their group"
-  on students
-  for select
-  using (
-    exists (
-      select 1 from teachers t
-      where t.user_id = auth.uid()
-      and t.group_id = students.group_id
-    )
-  );
-
 create policy "Students can update their own profile"
   on students
   for update
@@ -149,6 +138,18 @@ create policy "Teachers can update their own profile"
 
 create index idx_teachers_user_id on teachers(user_id);
 create index idx_teachers_group_id on teachers(group_id);
+
+-- Moved here: this policy needs the teachers table to exist first
+create policy "Teachers can read students in their group"
+  on students
+  for select
+  using (
+    exists (
+      select 1 from teachers t
+      where t.user_id = auth.uid()
+      and t.group_id = students.group_id
+    )
+  );
 
 -- ============================================
 -- 7. ATTENDANCE SESSIONS TABLE

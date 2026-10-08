@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { todayLocal } from '@/lib/utils';
 
 export default function TeacherDashboard() {
   const [stats, setStats] = useState({
@@ -19,38 +21,36 @@ export default function TeacherDashboard() {
 
   const loadStats = async () => {
     try {
-      // Get total students
-      const { data: students } = await supabase
-        .from('students')
-        .select('id');
+      const { data: students } = await supabase.from('students').select('id');
 
-      // Get today's attendance
-      const today = new Date().toISOString().split('T')[0];
-      const { data: todayRecords } = await supabase
-        .from('attendance_records')
-        .select('status')
-        .like('created_at', `${today}%`);
+      // Use the most recent lesson of today
+      const today = todayLocal();
+      const { data: sessions } = await supabase
+        .from('attendance_sessions')
+        .select('id')
+        .eq('session_date', today)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      let records: { status: string }[] = [];
+      if (sessions && sessions[0]) {
+        const { data } = await supabase
+          .from('attendance_records')
+          .select('status')
+          .eq('session_id', sessions[0].id);
+        records = data || [];
+      }
 
       const totalStudents = students?.length || 0;
-      const presentToday = todayRecords?.filter((r) => r.status === 'present').length || 0;
-      const lateToday = todayRecords?.filter((r) => r.status === 'late').length || 0;
-      const absentToday = todayRecords?.filter((r) => r.status === 'absent').length || 0;
-
+      const presentToday = records.filter((r) => r.status === 'present').length;
+      const lateToday = records.filter((r) => r.status === 'late').length;
+      const absentToday = records.filter((r) => r.status === 'absent').length;
       const attendanceRate =
         totalStudents > 0
-          ? Math.round(
-              ((presentToday + lateToday) / totalStudents) * 100
-            )
+          ? Math.round(((presentToday + lateToday) / totalStudents) * 100)
           : 0;
 
-      setStats({
-        totalStudents,
-        presentToday,
-        lateToday,
-        absentToday,
-        attendanceRate,
-      });
-
+      setStats({ totalStudents, presentToday, lateToday, absentToday, attendanceRate });
       setLoading(false);
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -88,7 +88,7 @@ export default function TeacherDashboard() {
 
       {/* Attendance Rate */}
       <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl p-6 text-white">
-        <p className="text-sm opacity-90 mb-2">TODAY'S ATTENDANCE RATE</p>
+        <p className="text-sm opacity-90 mb-2">OXIRGI DARS BO'YICHA DAVOMAT</p>
         <div className="flex items-center justify-between">
           <p className="text-5xl font-bold">{stats.attendanceRate}%</p>
           <div className="text-6xl opacity-20">📈</div>
@@ -97,22 +97,37 @@ export default function TeacherDashboard() {
 
       {/* Action Buttons */}
       <div className="space-y-3">
-        <button className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold py-4 rounded-xl transition text-lg">
-          ✓ START ATTENDANCE
-        </button>
+        <Link
+          href="/teacher/attendance"
+          className="block text-center w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold py-4 rounded-xl text-lg"
+        >
+          ✓ DAVOMAT BOSHLASH
+        </Link>
         <div className="grid grid-cols-2 gap-3">
-          <button className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold py-3 rounded-xl transition">
-            📋 History
-          </button>
-          <button className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold py-3 rounded-xl transition">
-            👥 Students
-          </button>
-          <button className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold py-3 rounded-xl transition">
-            📊 Reports
-          </button>
-          <button className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold py-3 rounded-xl transition">
-            ⚙️ Settings
-          </button>
+          <Link
+            href="/teacher/history"
+            className="block text-center bg-slate-800 border border-slate-700 text-white font-semibold py-3 rounded-xl"
+          >
+            📋 Tarix
+          </Link>
+          <Link
+            href="/teacher/students"
+            className="block text-center bg-slate-800 border border-slate-700 text-white font-semibold py-3 rounded-xl"
+          >
+            👥 Talabalar
+          </Link>
+          <Link
+            href="/teacher/reports"
+            className="block text-center bg-slate-800 border border-slate-700 text-white font-semibold py-3 rounded-xl"
+          >
+            📊 Hisobot
+          </Link>
+          <Link
+            href="/teacher/settings"
+            className="block text-center bg-slate-800 border border-slate-700 text-white font-semibold py-3 rounded-xl"
+          >
+            ⚙️ Sozlamalar
+          </Link>
         </div>
       </div>
     </div>

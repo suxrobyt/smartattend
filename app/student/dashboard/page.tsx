@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Student, AttendanceRecord } from '@/lib/types';
 
@@ -40,7 +41,7 @@ export default function StudentDashboard() {
         // Get attendance stats
         const { data: records } = await supabase
           .from('attendance_records')
-          .select('status')
+          .select('status, created_at')
           .eq('student_id', studentData.id);
 
         if (records) {
@@ -53,8 +54,8 @@ export default function StudentDashboard() {
           setAttendanceStats(stats);
 
           // Get today's status
-          const today = new Date().toISOString().split('T')[0];
-          const todayRecord = records.find((r) => r.created_at.startsWith(today));
+          const today = new Date().toLocaleDateString('en-CA');
+          const todayRecord = records.find((r) => new Date(r.created_at).toLocaleDateString('en-CA') === today);
           if (todayRecord) {
             setTodayStatus(todayRecord.status.toUpperCase());
           }
@@ -141,14 +142,12 @@ export default function StudentDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="space-y-3">
-        <button className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold py-3 rounded-xl transition">
-          📍 Check Attendance
-        </button>
-        <button className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold py-3 rounded-xl transition">
-          📅 View History
-        </button>
-      </div>
+      <Link
+        href="/student/history"
+        className="block text-center w-full bg-slate-800 border border-slate-700 text-white font-semibold py-3 rounded-xl"
+      >
+        📅 Davomat tarixi
+      </Link>
     </div>
   );
 }
