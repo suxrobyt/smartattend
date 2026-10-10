@@ -2,13 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Status, STATUS_LABEL } from '@/lib/utils';
+import { Status, STATUS_ORDER, STATUS_SOFT, fmtDate } from '@/lib/utils';
+import { subjectLabel } from '@/lib/schedule';
+import { useLang } from '@/components/LanguageProvider';
+import Icon from '@/components/Icon';
+import { Alert, Empty, PageTitle, Spinner } from '@/components/ui';
 
-type Session = { id: string; subject: string; session_date: string; status: string };
+type Sess = { id: string; subject: string; session_date: string; status: string };
 type Rec = { session_id: string; status: Status; students: { full_name: string } | null };
 
 export default function HistoryPage() {
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const { t, lang } = useLang();
+  const [sessions, setSessions] = useState<Sess[]>([]);
   const [records, setRecords] = useState<Rec[]>([]);
   const [open, setOpen] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,15 +24,16 @@ export default function HistoryPage() {
       const { data: s, error: e } = await supabase
         .from('attendance_sessions')
         .select('id, subject, session_date, status')
+        .order('session_date', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(30);
+        .limit(40);
       if (e) {
         setError(e.message);
         setLoading(false);
         return;
       }
-      setSessions(s || []);
-      const ids = (s || []).map((x) => x.id);
+      setSessions((s as Sess[]) || []);
+      const ids = (s || []).map((x: any) => x.id);
       if (ids.length) {
         const { data: r } = await supabase
           .from('attendance_records')
@@ -39,51 +45,48 @@ export default function HistoryPage() {
     })();
   }, []);
 
-  const countFor = (sid: string, st: Status) =>
-    records.filter((r) => r.session_id === sid && r.status === st).length;
+  const countFor = (sid: string, st: Status) => records.filter((r) => r.session_id === sid && r.status === st).length;
+
+  if (loading) return <Spinner label={t('common.loading')} />;
 
   return (
-    <div className="p-4 pb-16 max-w-md mx-auto space-y-4">
-      <h1 className="text-2xl font-bold text-white">Tarix</h1>
-      {loading && <p className="text-slate-400">Yuklanmoqda...</p>}
-      {error && <p className="text-red-400 text-sm">{error}</p>}
-      {!loading && sessions.length === 0 && !error && (
-        <p className="text-slate-400">Hali darslar yo'q.</p>
-      )}
-      <div className="space-y-2">
-        {sessions.map((s) => (
-          <div key={s.id} className="bg-slate-800 border border-slate-700 rounded-xl">
-            <button
-              onClick={() => setOpen(open === s.id ? null : s.id)}
-              className="w-full text-left p-3"
-            >
-              <div className="flex justify-between">
-                <p className="text-white font-semibold">{s.subject}</p>
-                <p className="text-slate-400 text-sm">{s.session_date}</p>
-              </div>
-              <p className="text-xs text-slate-400 mt-1">
-                Keldi {countFor(s.id, 'present')} · Kech {countFor(s.id, 'late')} · Kelmadi{' '}
-                {countFor(s.id, 'absent')} · Sababli {countFor(s.id, 'excused')}
-                {s.status === 'active' ? ' · davom etmoqda' : ''}
-              </p>
-            </button>
-            {open === s.id && (
-              <div className="border-t border-slate-700 p-3 space-y-1">
-                {records
-                  .filter((r) => r.session_id === s.id)
-                  .sort((a, b) =>
-                    (a.students?.full_name || '').localeCompare(b.students?.full_name || '')
-                  )
-                  .map((r, i) => (
-                    <div key={i} className="flex justify-between text-sm">
-                      <span className="text-slate-300">{r.students?.full_name}</span>
-                      <span className="text-slate-400">{STATUS_LABEL[r.status]}</span>
+    <div className="space-y-4">
+      <PageTitle title={t('hist.title')} />
+      {error && <Alert kind="error">{error}</Alert>}
+      {!error && sessions.length === 0 && <Empty icon="history" text={t('hist.empty')} />}
+      <div className="space-y-2.5">
+        {sessions.map((s) => {
+          const isOpen = open === s.id;
+          const recs = records.filter((r) => r.session_id === s.id).sort((a, b) => (a.students?.full_name || '').localeCompare(b.students?.full_name || ''));
+          return (
+            <div key={s.id} className="card overflow-hidden">
+              <button type="button" onClick={() => setOpen(isOpen ? null : s.id)} className="w-full px-4 py-3.5 text-left">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-[15px] font-semibold leading-snug">{subjectLabel(s.subject, lang)}</p>
+                  <span className="shrink-0 text-xs text-muted">{fmtDate(s.session_date)}</span>
+                </div>
+                <div className="mt-2.5 flex flex-wrap gap-1.5">
+                  {STATUS_ORDER.map((st) => (
+                    <span key={st} className={'rounded-full border px-2 py-0.5 text-xs font-medium ' + STATUS_SOFT[st]}>
+                      {t('status.' + st)} {countFor(s.id, st)}
+                    </span>
+                  ))}
+                  {s.status === 'active' && <span className="chip !border-warn/30 !text-warn">{t('hist.active')}</span>}
+                </div>
+              </button>
+              {isOpen && (
+                <div className="divide-y divide-line border-t border-line bg-surface-2/40">
+                  {recs.map((r, i) => (
+                    <div key={i} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                      <span className="truncate">{r.students?.full_name}</span>
+                      <span className={'shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ' + STATUS_SOFT[r.status]}>{t('status.' + r.status)}</span>
                     </div>
                   ))}
-              </div>
-            )}
-          </div>
-        ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -3,127 +3,93 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { LANGS, LANG_NATIVE } from '@/lib/i18n';
+import { useLang } from '@/components/LanguageProvider';
+import PasswordInput from '@/components/PasswordInput';
+import Icon from '@/components/Icon';
+import { Alert } from '@/components/ui';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t, lang, setLang } = useLang();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
-      // Find the email for this username (safe SQL function, see supabase/fixes.sql)
-      const { data: foundEmail } = await supabase.rpc('email_for_username', {
-        p_username: username.trim(),
-      });
-
-      if (!foundEmail) {
-        setError('Username not found');
-        setLoading(false);
+      const { data: email } = await supabase.rpc('email_for_username', { p_username: username.trim() });
+      if (!email) {
+        setError(t('login.invalid'));
         return;
       }
-
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email: foundEmail as string,
-        password,
-      });
-
-      if (authError || !data.user) {
-        setError('Invalid credentials');
-        setLoading(false);
+      const { data, error: err } = await supabase.auth.signInWithPassword({ email: email as string, password });
+      if (err || !data.user) {
+        setError(t('login.invalid'));
         return;
       }
-
       const role = data.user.user_metadata?.role;
-
-      // Redirect based on role
       router.refresh();
-      if (role === 'teacher') {
-        router.push('/teacher/dashboard');
-      } else {
-        router.push('/student/dashboard');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
+      router.push(role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard');
+    } catch {
+      setError(t('common.error'));
+    } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo & Header */}
-        <div className="text-center mb-8">
-          <div className="inline-block bg-gradient-to-br from-blue-500 to-cyan-500 p-3 rounded-xl mb-4">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-2">SmartAttend</h1>
-          <p className="text-slate-400">Group 9-26</p>
-          <p className="text-slate-500 text-sm mt-2">Online attendance management</p>
+    <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col justify-center px-5 py-10">
+      <div className="mb-8 text-center">
+        <span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-2 shadow-card">
+          <Icon name="check-circle" className="h-9 w-9 text-[#04101f]" />
+        </span>
+        <h1 className="text-3xl font-bold tracking-tight">SmartAttend</h1>
+        <p className="mt-1.5 text-sm text-muted">{t('login.subtitle')}</p>
+      </div>
+
+      <form onSubmit={submit} className="card space-y-4 p-5">
+        <div>
+          <label className="label" htmlFor="u">{t('login.username')}</label>
+          <input
+            id="u"
+            className="field"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder={t('login.usernamePh')}
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+          />
         </div>
-
-        {/* Form Card */}
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl">
-          <form onSubmit={handleLogin} className="space-y-6">
-            {/* Username */}
-            <div>
-              <label className="block text-sm font-medium text-slate-200 mb-2">
-                Username
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
-                placeholder="Enter your username"
-                disabled={loading}
-              />
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="block text-sm font-medium text-slate-200 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
-                placeholder="Enter your password"
-                disabled={loading}
-              />
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-                <p className="text-red-400 text-sm">{error}</p>
-              </div>
-            )}
-
-            {/* Sign In Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition transform hover:scale-105 active:scale-95"
-            >
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
-          </form>
+        <div>
+          <label className="label" htmlFor="p">{t('login.password')}</label>
+          <PasswordInput id="p" value={password} onChange={setPassword} placeholder={t('login.passwordPh')} />
         </div>
+        {error && <Alert kind="error">{error}</Alert>}
+        <button className="btn-primary w-full py-3.5" disabled={loading || !username.trim() || !password}>
+          {loading ? t('login.submitting') : t('login.submit')}
+        </button>
+      </form>
 
-        {/* Footer */}
-        <p className="text-center text-slate-500 text-sm mt-6">
-          Yordam kerakmi? O'qituvchingizga murojaat qiling
-        </p>
+      <p className="mt-4 text-center text-xs text-muted">{t('login.help')}</p>
+
+      <div className="mt-6 flex flex-wrap justify-center gap-2">
+        {LANGS.map((l) => (
+          <button
+            key={l}
+            type="button"
+            onClick={() => setLang(l)}
+            className={'chip transition ' + (l === lang ? '!border-brand !bg-brand/15 !text-brand' : 'hover:bg-white/10')}
+          >
+            {LANG_NATIVE[l]}
+          </button>
+        ))}
       </div>
     </div>
   );

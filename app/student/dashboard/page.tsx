@@ -1,153 +1,117 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Student, AttendanceRecord } from '@/lib/types';
+import { Status, STATUS_ORDER, STATUS_SOFT, STATUS_DOT, todayLocal, firstName } from '@/lib/utils';
+import { lessonsFor, weekType, subjectLabel, dayName } from '@/lib/schedule';
+import { useLang } from '@/components/LanguageProvider';
+import Icon from '@/components/Icon';
+import { Spinner } from '@/components/ui';
+
+type Rec = { status: Status; attendance_sessions: { subject: string; session_date: string } | null };
 
 export default function StudentDashboard() {
-  const [student, setStudent] = useState<Student | null>(null);
-  const [todayStatus, setTodayStatus] = useState('Not marked');
-  const [attendanceStats, setAttendanceStats] = useState({
-    present: 0,
-    late: 0,
-    absent: 0,
-    excused: 0,
-  });
+  const { t, lang } = useLang();
+  const [now, setNow] = useState<Date | null>(null);
+  const [name, setName] = useState('');
+  const [pct, setPct] = useState(0);
+  const [recs, setRecs] = useState<Rec[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStudentData();
+    setNow(new Date());
+    (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return;
+      const { data: me } = await supabase.from('students').select('id, full_name, attendance_percentage').eq('user_id', u.user.id).maybeSingle();
+      if (me) {
+        setName(me.full_name);
+        setPct(Math.round(Number(me.attendance_percentage) || 0));
+        const { data } = await supabase
+          .from('attendance_records')
+          .select('status, attendance_sessions(subject, session_date)')
+          .eq('student_id', me.id);
+        setRecs((data as any) || []);
+      }
+      setLoading(false);
+    })();
   }, []);
 
-  const loadStudentData = async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+  if (loading || !now) return <Spinner label={t('common.loading')} />;
 
-      if (!user) return;
-
-      // Get student profile
-      const { data: studentData } = await supabase
-        .from('students')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (studentData) {
-        setStudent(studentData);
-
-        // Get attendance stats
-        const { data: records } = await supabase
-          .from('attendance_records')
-          .select('status, created_at')
-          .eq('student_id', studentData.id);
-
-        if (records) {
-          const stats = {
-            present: records.filter((r) => r.status === 'present').length,
-            late: records.filter((r) => r.status === 'late').length,
-            absent: records.filter((r) => r.status === 'absent').length,
-            excused: records.filter((r) => r.status === 'excused').length,
-          };
-          setAttendanceStats(stats);
-
-          // Get today's status
-          const today = new Date().toLocaleDateString('en-CA');
-          const todayRecord = records.find((r) => new Date(r.created_at).toLocaleDateString('en-CA') === today);
-          if (todayRecord) {
-            setTodayStatus(todayRecord.status.toUpperCase());
-          }
-        }
-      }
-
-      setLoading(false);
-    } catch (error) {
-      console.error('Error loading student data:', error);
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="p-4 space-y-4">
-        <div className="h-20 bg-slate-700 rounded-lg animate-pulse" />
-        <div className="h-32 bg-slate-700 rounded-lg animate-pulse" />
-      </div>
-    );
-  }
+  const c: Record<Status, number> = { present: 0, late: 0, absent: 0, excused: 0 };
+  recs.forEach((r) => (c[r.status] += 1));
+  const today = todayLocal();
+  const todays = recs.filter((r) => r.attendance_sessions?.session_date === today);
+  const statusOf = (subject: string) => todays.find((r) => r.attendance_sessions?.subject === subject)?.status;
+  const lessons = lessonsFor(now.getDay(), weekType(now));
+  const tone = pct >= 85 ? 'text-ok' : pct >= 60 ? 'text-warn' : 'text-bad';
 
   return (
-    <div className="p-4 space-y-6 pb-24">
-      {/* Greeting */}
+    <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white">
-          Assalomu alaykum, {student?.full_name}
-        </h1>
-        <p className="text-slate-400 mt-1">Group: 9-26</p>
+        <p className="text-sm text-muted">
+          {t('dash.hello')} · {dayName(now.getDay(), lang)}
+        </p>
+        <h1 className="text-[26px] font-bold leading-tight tracking-tight">{firstName(name) || '…'}</h1>
       </div>
 
-      {/* Today's Status */}
-      <div className="bg-gradient-to-br from-blue-600 to-blue-500 rounded-2xl p-6 text-white">
-        <p className="text-sm opacity-90 mb-2">TODAY'S STATUS</p>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-4xl font-bold">{todayStatus}</p>
-          </div>
-          <div className="text-6xl opacity-20">📋</div>
+      <section className="card relative overflow-hidden p-5">
+        <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-brand-2/15 blur-2xl" />
+        <p className="eyebrow">{t('dash.myRate')}</p>
+        <p className={'mt-2 text-5xl font-bold tracking-tight ' + tone}>{pct}%</p>
+        <p className="mt-1 text-sm text-muted">{t('dash.myRateSub')}</p>
+        <div className="mt-4 grid grid-cols-4 gap-2">
+          {STATUS_ORDER.map((s) => (
+            <div key={s} className="rounded-xl border border-line bg-surface-2/60 px-2 py-2.5 text-center">
+              <p className="text-xl font-bold">{c[s]}</p>
+              <p className="mt-0.5 flex items-center justify-center gap-1 text-[11px] text-muted">
+                <span className={'h-1.5 w-1.5 rounded-full ' + STATUS_DOT[s]} />
+                {t('status.' + s)}
+              </p>
+            </div>
+          ))}
         </div>
-      </div>
+      </section>
 
-      {/* Attendance Percentage */}
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
-        <p className="text-slate-400 text-sm mb-4">ATTENDANCE RATE</p>
-        <div className="flex items-end gap-4">
-          <div>
-            <p className="text-5xl font-bold text-white mb-2">
-              {Math.round(
-                (attendanceStats.present /
-                  (attendanceStats.present +
-                    attendanceStats.late +
-                    attendanceStats.absent +
-                    attendanceStats.excused || 1)) *
-                  100
-              )}
-              %
-            </p>
-            <p className="text-slate-400 text-sm">of total classes attended</p>
+      <section>
+        <h2 className="mb-3 text-lg font-bold">{t('dash.todayLessons')}</h2>
+        {lessons.length === 0 ? (
+          <p className="text-sm text-muted">{t('dash.noLessons')}</p>
+        ) : (
+          <div className="card divide-y divide-line overflow-hidden">
+            {lessons.map((l) => {
+              const st = statusOf(l.subject);
+              return (
+                <div key={l.pair} className="flex items-center gap-3 px-4 py-3.5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/15 font-bold text-brand">{l.pair}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-semibold">{subjectLabel(l.subject, lang)}</span>
+                    <span className="block truncate text-xs text-muted">{l.teacher || t('sch.vacant')}</span>
+                  </span>
+                  {st ? (
+                    <span className={'rounded-full border px-2 py-0.5 text-xs font-medium ' + STATUS_SOFT[st]}>{t('status.' + st)}</span>
+                  ) : (
+                    <span className="text-xs text-muted">{t('dash.notMarked')}</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <div className="text-5xl">📊</div>
-        </div>
-      </div>
+        )}
+      </section>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-          <p className="text-slate-400 text-xs mb-2">PRESENT</p>
-          <p className="text-3xl font-bold text-green-400">{attendanceStats.present}</p>
-        </div>
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-          <p className="text-slate-400 text-xs mb-2">LATE</p>
-          <p className="text-3xl font-bold text-yellow-400">{attendanceStats.late}</p>
-        </div>
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-          <p className="text-slate-400 text-xs mb-2">ABSENT</p>
-          <p className="text-3xl font-bold text-red-400">{attendanceStats.absent}</p>
-        </div>
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-          <p className="text-slate-400 text-xs mb-2">EXCUSED</p>
-          <p className="text-3xl font-bold text-blue-400">{attendanceStats.excused}</p>
-        </div>
+        <Link href="/student/schedule" className="card flex items-center gap-3 p-4 hover:bg-surface-2">
+          <Icon name="calendar" className="h-5 w-5 text-brand" />
+          <span className="text-[15px] font-semibold">{t('dash.timetable')}</span>
+        </Link>
+        <Link href="/student/history" className="card flex items-center gap-3 p-4 hover:bg-surface-2">
+          <Icon name="history" className="h-5 w-5 text-brand" />
+          <span className="text-[15px] font-semibold">{t('dash.myHistory')}</span>
+        </Link>
       </div>
-
-      {/* Quick Actions */}
-      <Link
-        href="/student/history"
-        className="block text-center w-full bg-slate-800 border border-slate-700 text-white font-semibold py-3 rounded-xl"
-      >
-        📅 Davomat tarixi
-      </Link>
     </div>
   );
 }

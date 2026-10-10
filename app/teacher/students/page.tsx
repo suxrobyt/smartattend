@@ -2,53 +2,56 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useLang } from '@/components/LanguageProvider';
+import Avatar from '@/components/Avatar';
+import Icon from '@/components/Icon';
+import { PageTitle, Spinner } from '@/components/ui';
 
-type Row = {
-  id: string;
-  full_name: string;
-  username: string;
-  attendance_percentage: number | null;
-};
+type S = { id: string; full_name: string; username: string; user_id: string | null; attendance_percentage: number };
 
 export default function StudentsPage() {
-  const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { t } = useLang();
+  const [list, setList] = useState<S[] | null>(null);
+  const [q, setQ] = useState('');
 
   useEffect(() => {
-    (async () => {
-      const { data, error: e } = await supabase
-        .from('students')
-        .select('id, full_name, username, attendance_percentage')
-        .order('full_name');
-      if (e) setError(e.message);
-      setRows((data as Row[]) || []);
-      setLoading(false);
-    })();
+    supabase
+      .from('students')
+      .select('id, full_name, username, user_id, attendance_percentage')
+      .order('full_name')
+      .then(({ data }) => setList((data as S[]) || []));
   }, []);
 
+  if (!list) return <Spinner label={t('common.loading')} />;
+  const f = q.trim().toLowerCase();
+  const shown = list.filter((s) => !f || s.full_name.toLowerCase().includes(f) || s.username.toLowerCase().includes(f));
+
   return (
-    <div className="p-4 pb-16 max-w-md mx-auto space-y-4">
-      <h1 className="text-2xl font-bold text-white">Talabalar ({rows.length})</h1>
-      {loading && <p className="text-slate-400">Yuklanmoqda...</p>}
-      {error && <p className="text-red-400 text-sm">{error}</p>}
-      <div className="space-y-2">
-        {rows.map((r, i) => (
-          <div
-            key={r.id}
-            className="flex items-center justify-between bg-slate-800 border border-slate-700 rounded-xl p-3"
-          >
-            <div className="pr-3">
-              <p className="text-white text-sm font-medium">
-                {i + 1}. {r.full_name}
-              </p>
-              <p className="text-slate-500 text-xs">{r.username}</p>
+    <div className="space-y-4">
+      <PageTitle title={t('stu.title')} subtitle={`${list.length}`} />
+      <div className="relative">
+        <Icon name="search" className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted" />
+        <input className="field pl-10" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('stu.search')} />
+      </div>
+      <div className="card divide-y divide-line overflow-hidden">
+        {shown.map((s, i) => {
+          const pct = Math.round(Number(s.attendance_percentage) || 0);
+          const tone = pct >= 85 ? 'text-ok' : pct >= 60 ? 'text-warn' : 'text-bad';
+          return (
+            <div key={s.id} className="flex items-center gap-3 px-3.5 py-3">
+              <span className="w-5 text-center text-xs text-muted">{i + 1}</span>
+              <Avatar name={s.full_name} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[15px] font-semibold">{s.full_name}</p>
+                <p className="truncate text-xs text-muted">
+                  {s.username}
+                  {!s.user_id && ` · ${t('stu.noAccount')}`}
+                </p>
+              </div>
+              <span className={'text-base font-bold ' + tone}>{pct}%</span>
             </div>
-            <p className="text-blue-400 font-bold whitespace-nowrap">
-              {Math.round(Number(r.attendance_percentage || 0))}%
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

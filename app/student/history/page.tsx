@@ -2,59 +2,52 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Status, STATUS_LABEL, STATUS_COLOR } from '@/lib/utils';
+import { Status, STATUS_SOFT, fmtDate } from '@/lib/utils';
+import { subjectLabel } from '@/lib/schedule';
+import { useLang } from '@/components/LanguageProvider';
+import { Alert, Empty, PageTitle, Spinner } from '@/components/ui';
 
-type Rec = { id: string; status: Status; created_at: string };
+type Rec = { id: string; status: Status; attendance_sessions: { subject: string; session_date: string } | null };
 
 export default function StudentHistory() {
+  const { t, lang } = useLang();
   const [rows, setRows] = useState<Rec[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     (async () => {
-      const { data: me } = await supabase
-        .from('students')
-        .select('id')
-        .single();
-      if (!me) {
-        setLoading(false);
-        return;
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return;
+      const { data: me } = await supabase.from('students').select('id').eq('user_id', u.user.id).maybeSingle();
+      if (me) {
+        const { data, error: e } = await supabase
+          .from('attendance_records')
+          .select('id, status, attendance_sessions(subject, session_date)')
+          .eq('student_id', me.id);
+        if (e) setError(e.message);
+        const list = ((data as any) || []) as Rec[];
+        list.sort((a, b) => (b.attendance_sessions?.session_date || '').localeCompare(a.attendance_sessions?.session_date || ''));
+        setRows(list);
       }
-      const { data, error: e } = await supabase
-        .from('attendance_records')
-        .select('id, status, created_at')
-        .eq('student_id', me.id)
-        .order('created_at', { ascending: false });
-      if (e) setError(e.message);
-      setRows((data as Rec[]) || []);
       setLoading(false);
     })();
   }, []);
 
+  if (loading) return <Spinner label={t('common.loading')} />;
   return (
-    <div className="p-4 pb-16 max-w-md mx-auto space-y-4">
-      <h1 className="text-2xl font-bold text-white">Davomat tarixi</h1>
-      {loading && <p className="text-slate-400">Yuklanmoqda...</p>}
-      {error && <p className="text-red-400 text-sm">{error}</p>}
-      {!loading && rows.length === 0 && !error && (
-        <p className="text-slate-400">Hali yozuvlar yo'q.</p>
-      )}
+    <div className="space-y-4">
+      <PageTitle title={t('myhist.title')} />
+      {error && <Alert kind="error">{error}</Alert>}
+      {!error && rows.length === 0 && <Empty icon="history" text={t('myhist.empty')} />}
       <div className="space-y-2">
         {rows.map((r) => (
-          <div
-            key={r.id}
-            className="flex justify-between items-center bg-slate-800 border border-slate-700 rounded-xl p-3"
-          >
-            <span className="text-slate-300 text-sm">
-              {new Date(r.created_at).toLocaleString('uz-UZ', {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              })}
-            </span>
-            <span className={'text-xs font-semibold px-2.5 py-1 rounded-lg border ' + STATUS_COLOR[r.status]}>
-              {STATUS_LABEL[r.status]}
-            </span>
+          <div key={r.id} className="card flex items-center justify-between gap-3 px-4 py-3">
+            <div className="min-w-0">
+              <p className="truncate text-[15px] font-semibold">{r.attendance_sessions ? subjectLabel(r.attendance_sessions.subject, lang) : '—'}</p>
+              <p className="text-xs text-muted">{r.attendance_sessions ? fmtDate(r.attendance_sessions.session_date) : ''}</p>
+            </div>
+            <span className={'shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ' + STATUS_SOFT[r.status]}>{t('status.' + r.status)}</span>
           </div>
         ))}
       </div>

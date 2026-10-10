@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Status, STATUS_LABEL, toCsv, downloadCsv } from '@/lib/utils';
+import { Status, STATUS_ORDER, toCsv, downloadCsv, fmtDate } from '@/lib/utils';
+import { subjectLabel } from '@/lib/schedule';
+import { useLang } from '@/components/LanguageProvider';
+import Icon from '@/components/Icon';
+import { Alert, PageTitle, Spinner } from '@/components/ui';
 
 type SessionRow = { id: string; subject: string; session_date: string };
-type RecRow = {
-  session_id: string;
-  student_id: string;
-  status: Status;
-  students: { full_name: string; username: string } | null;
-};
+type RecRow = { session_id: string; student_id: string; status: Status; students: { full_name: string; username: string } | null };
 type StudentRow = { id: string; full_name: string; username: string };
 
 function daysAgo(n: number) {
@@ -20,8 +19,9 @@ function daysAgo(n: number) {
 }
 
 export default function ReportsPage() {
-  const [from, setFrom] = useState(daysAgo(30));
-  const [to, setTo] = useState(daysAgo(0));
+  const { t, lang } = useLang();
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [records, setRecords] = useState<RecRow[]>([]);
@@ -29,45 +29,42 @@ export default function ReportsPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    load();
+    const f = daysAgo(30);
+    const tt = daysAgo(0);
+    setFrom(f);
+    setTo(tt);
+    load(f, tt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function load() {
+  async function load(f: string, tt: string) {
     setLoading(true);
     setError('');
     try {
-      const { data: st } = await supabase
-        .from('students')
-        .select('id, full_name, username')
-        .order('full_name');
+      const { data: st } = await supabase.from('students').select('id, full_name, username').order('full_name');
       setStudents((st as StudentRow[]) || []);
-
       const { data: ss, error: se } = await supabase
         .from('attendance_sessions')
         .select('id, subject, session_date')
-        .gte('session_date', from)
-        .lte('session_date', to)
+        .gte('session_date', f)
+        .lte('session_date', tt)
         .order('session_date', { ascending: true })
         .limit(500);
       if (se) throw se;
       setSessions((ss as SessionRow[]) || []);
-
-      // Fetch records in small chunks so we never hit the 1000-row limit
       const ids = (ss || []).map((s: any) => s.id);
       const all: RecRow[] = [];
       for (let i = 0; i < ids.length; i += 20) {
-        const chunk = ids.slice(i, i + 20);
         const { data: rr, error: re } = await supabase
           .from('attendance_records')
           .select('session_id, student_id, status, students(full_name, username)')
-          .in('session_id', chunk);
+          .in('session_id', ids.slice(i, i + 20));
         if (re) throw re;
         all.push(...((rr as any) || []));
       }
       setRecords(all);
     } catch (e: any) {
-      setError(e.message || 'Xato');
+      setError(e.message || t('common.error'));
     }
     setLoading(false);
   }
@@ -76,145 +73,91 @@ export default function ReportsPage() {
     const mine = records.filter((r) => r.student_id === s.id);
     const c = (st: Status) => mine.filter((r) => r.status === st).length;
     const total = mine.length;
-    const percent = total ? Math.round(((c('present') + c('late')) / total) * 100) : 0;
-    return {
-      ...s,
-      present: c('present'),
-      late: c('late'),
-      absent: c('absent'),
-      excused: c('excused'),
-      total,
-      percent,
-    };
+    return { ...s, present: c('present'), late: c('late'), absent: c('absent'), excused: c('excused'), total, percent: total ? Math.round(((c('present') + c('late')) / total) * 100) : 0 };
   });
 
   function csvSummary() {
     const rows: (string | number)[][] = [
-      ['№', 'Talaba', 'Username', 'Keldi', 'Kechikdi', 'Kelmadi', 'Sababli', 'Jami darslar', 'Davomat %'],
-      ...summary.map((s, i) => [
-        i + 1,
-        s.full_name,
-        s.username,
-        s.present,
-        s.late,
-        s.absent,
-        s.excused,
-        s.total,
-        s.percent,
-      ]),
+      ['№', t('rep.student'), t('rep.login'), t('status.present'), t('status.late'), t('status.absent'), t('status.excused'), t('rep.total'), t('rep.percent')],
+      ...summary.map((s, i) => [i + 1, s.full_name, s.username, s.present, s.late, s.absent, s.excused, s.total, s.percent]),
     ];
     downloadCsv(`davomat-xulosa_${from}_${to}.csv`, toCsv(rows));
   }
 
   function csvDetailed() {
-    const sById = new Map<string, SessionRow>(
-      sessions.map((s) => [s.id, s] as [string, SessionRow])
-    );
-    const rows: (string | number)[][] = [['Sana', 'Fan', 'Talaba', 'Username', 'Holat']];
+    const byId = new Map<string, SessionRow>(sessions.map((s) => [s.id, s] as [string, SessionRow]));
+    const rows: (string | number)[][] = [[t('rep.date'), t('rep.subject'), t('rep.student'), t('rep.login'), t('rep.status')]];
     records
       .slice()
-      .sort((a, b) =>
-        (sById.get(a.session_id)?.session_date || '').localeCompare(
-          sById.get(b.session_id)?.session_date || ''
-        )
-      )
+      .sort((a, b) => (byId.get(a.session_id)?.session_date || '').localeCompare(byId.get(b.session_id)?.session_date || ''))
       .forEach((r) => {
-        const s = sById.get(r.session_id);
-        rows.push([
-          s?.session_date || '',
-          s?.subject || '',
-          r.students?.full_name || '',
-          r.students?.username || '',
-          STATUS_LABEL[r.status],
-        ]);
+        const s = byId.get(r.session_id);
+        rows.push([s ? fmtDate(s.session_date) : '', s ? subjectLabel(s.subject, lang) : '', r.students?.full_name || '', r.students?.username || '', t('status.' + r.status)]);
       });
     downloadCsv(`davomat-batafsil_${from}_${to}.csv`, toCsv(rows));
   }
 
-  const input = 'w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-3 text-sm';
-
   return (
-    <div className="p-4 pb-20 max-w-md mx-auto space-y-5">
-      <h1 className="text-2xl font-bold text-white">Hisobot</h1>
-
-      <div className="grid grid-cols-2 gap-3">
-        <label className="text-xs text-slate-400 space-y-1">
-          Boshlanish
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={input} />
-        </label>
-        <label className="text-xs text-slate-400 space-y-1">
-          Tugash
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={input} />
-        </label>
+    <div className="space-y-4">
+      <PageTitle title={t('rep.title')} />
+      <div className="card space-y-3 p-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">{t('rep.from')}</label>
+            <input type="date" className="field" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">{t('rep.to')}</label>
+            <input type="date" className="field" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+        </div>
+        <button type="button" className="btn-soft w-full" onClick={() => load(from, to)} disabled={loading}>
+          {t('common.search')}
+        </button>
       </div>
-      <button
-        onClick={load}
-        disabled={loading}
-        className="w-full bg-slate-800 border border-slate-700 text-white font-semibold py-2.5 rounded-xl disabled:opacity-50"
-      >
-        {loading ? 'Yuklanmoqda...' : "Ko'rsatish"}
-      </button>
 
-      {error && <p className="text-red-400 text-sm">{error}</p>}
-
-      {!loading && !error && (
+      {error && <Alert kind="error">{error}</Alert>}
+      {loading ? (
+        <Spinner label={t('common.loading')} />
+      ) : (
         <>
-          <p className="text-slate-400 text-sm">
-            Darslar: {sessions.length} · Yozuvlar: {records.length}
-          </p>
-
           <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={csvSummary}
-              disabled={!students.length}
-              className="bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-sm font-semibold py-3 rounded-xl disabled:opacity-50"
-            >
-              ⬇ CSV: xulosa
+            <div className="card p-4">
+              <p className="eyebrow">{t('rep.lessons')}</p>
+              <p className="mt-1 text-3xl font-bold">{sessions.length}</p>
+            </div>
+            <div className="card p-4">
+              <p className="eyebrow">{t('rep.records')}</p>
+              <p className="mt-1 text-3xl font-bold">{records.length}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <button type="button" className="btn-primary" onClick={csvSummary}>
+              <Icon name="download" className="h-[18px] w-[18px]" />
+              {t('rep.csvSummary')}
             </button>
-            <button
-              onClick={csvDetailed}
-              disabled={!records.length}
-              className="bg-slate-800 border border-slate-700 text-white text-sm font-semibold py-3 rounded-xl disabled:opacity-50"
-            >
-              ⬇ CSV: batafsil
+            <button type="button" className="btn-soft" onClick={csvDetailed}>
+              <Icon name="download" className="h-[18px] w-[18px]" />
+              {t('rep.csvDetailed')}
             </button>
           </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-slate-400 text-xs text-left">
-                  <th className="py-2 pr-2">Talaba</th>
-                  <th className="px-1">K</th>
-                  <th className="px-1">Kech</th>
-                  <th className="px-1">Yo'q</th>
-                  <th className="px-1">Sab</th>
-                  <th className="pl-1">%</th>
-                </tr>
-              </thead>
-              <tbody>
-                {summary.map((s) => (
-                  <tr key={s.id} className="border-t border-slate-800 text-slate-200">
-                    <td className="py-2 pr-2">{s.full_name}</td>
-                    <td className="px-1">{s.present}</td>
-                    <td className="px-1">{s.late}</td>
-                    <td className="px-1">{s.absent}</td>
-                    <td className="px-1">{s.excused}</td>
-                    <td
-                      className={
-                        'pl-1 font-bold ' + (s.total && s.percent < 75 ? 'text-red-400' : 'text-green-400')
-                      }
-                    >
-                      {s.total ? s.percent + '%' : '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="card divide-y divide-line overflow-hidden">
+            {summary.map((s) => {
+              const tone = s.percent >= 85 ? 'text-ok' : s.percent >= 60 ? 'text-warn' : 'text-bad';
+              return (
+                <div key={s.id} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="truncate text-[15px] font-semibold">{s.full_name}</p>
+                    <span className={'text-base font-bold ' + tone}>{s.percent}%</span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted">
+                    {STATUS_ORDER.map((st) => `${t('status.' + st)} ${(s as any)[st]}`).join(' · ')} · {t('rep.total')}: {s.total}
+                  </p>
+                </div>
+              );
+            })}
           </div>
-          <p className="text-slate-500 text-xs">
-            K = keldi, Kech = kechikdi, Yo'q = kelmadi, Sab = sababli. Foiz = (keldi + kechikdi) / jami.
-          </p>
+          <p className="text-xs text-muted">{t('rep.legend')}</p>
         </>
       )}
     </div>

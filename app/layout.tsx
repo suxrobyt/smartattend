@@ -1,29 +1,31 @@
 import type { Metadata, Viewport } from 'next';
+import { cookies } from 'next/headers';
 import './globals.css';
+import { LanguageProvider } from '@/components/LanguageProvider';
+import { isLang } from '@/lib/i18n';
 
 export const metadata: Metadata = {
-  title: 'SmartAttend 9-26',
-  description: 'Smart online attendance management for group 9-26',
+  title: 'SmartAttend',
+  description: 'SmartAttend — 9K 9-26',
   manifest: '/manifest.json',
+  icons: { icon: '/icon.svg' },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  themeColor: '#0a0f1e',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const c = cookies().get('sa_lang')?.value;
+  const lang = isLang(c) ? c : 'uz';
   return (
-    <html lang="en">
-      <head>
-        <link rel="icon" href="/icon.svg" />
-      </head>
-      <body className="bg-slate-900 text-white">{children}</body>
+    <html lang={lang}>
+      <body>
+        <LanguageProvider initialLang={lang}>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }

@@ -1,10 +1,5 @@
-import AppHeader from '@/components/AppHeader';
+import AppShell from '@/components/AppShell';
 
 export default function TeacherLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen">
-      <AppHeader home="/teacher/dashboard" />
-      {children}
-    </div>
-  );
+  return <AppShell role="teacher">{children}</AppShell>;
 }

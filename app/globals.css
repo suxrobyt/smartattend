@@ -2,63 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html,
-body {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  min-height: 100vh;
-}
-
-/* Scrollbar Styling */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #1e293b;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #475569;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
-}
-
-/* Smooth Transitions */
-* {
-  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
-}
-
-button,
-a {
-  cursor: pointer;
-}
-
-/* Focus States */
-input:focus,
-button:focus {
-  outline: none;
-}
-
-/* Loading Animation */
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
+@layer base {
+  :root { color-scheme: dark; }
+  html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+  body {
+    @apply bg-bg text-ink antialiased;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(1000px 520px at 50% -170px, rgba(79,140,255,.22), transparent 70%),
+      radial-gradient(700px 400px at 100% 0%, rgba(34,211,238,.08), transparent 70%);
+    background-repeat: no-repeat;
   }
-  50% {
-    opacity: 0.5;
-  }
+  ::selection { background: rgba(79,140,255,.35); }
+  input, select, textarea, button { font: inherit; }
+  button { cursor: pointer; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #2a3556; border-radius: 8px; }
+  :focus-visible { outline: 2px solid #4f8cff; outline-offset: 2px; }
 }
 
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+@layer components {
+  .card { @apply rounded-2xl border border-line bg-surface shadow-card; }
+  .field {
+    @apply w-full rounded-xl border border-line bg-surface-2 px-4 py-3 text-[15px] text-ink outline-none transition;
+  }
+  .field::placeholder { color: rgba(139,151,179,.7); }
+  .field:focus { @apply border-brand; box-shadow: 0 0 0 3px rgba(79,140,255,.25); }
+  select.field {
+    appearance: none;
+    padding-right: 2.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b97b3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.9rem center;
+    background-size: 1.2rem;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-[15px] font-semibold transition;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn:disabled { opacity: .5; pointer-events: none; }
+  .btn-primary {
+    @apply btn bg-gradient-to-r from-brand to-brand-2 text-[#04101f];
+    box-shadow: 0 10px 24px -10px rgba(34,211,238,.55);
+  }
+  .btn-soft { @apply btn border border-line bg-surface-2 text-ink; }
+  .btn-soft:hover { @apply bg-surface-3; }
+  .btn-danger { @apply btn border border-bad/30 bg-bad/10 text-bad; }
+  .label { @apply mb-1.5 block text-xs font-medium text-muted; }
+  .eyebrow { @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-muted; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full border border-line bg-white/5 px-2.5 py-1 text-xs font-medium text-ink/80; }
+  .chat-h { height: calc(100dvh - 3.5rem - 4rem - env(safe-area-inset-bottom)); }
 }

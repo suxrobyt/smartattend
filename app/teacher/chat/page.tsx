@@ -1,0 +1,4 @@
+import ChatView from '@/components/ChatView';
+export default function Page() {
+  return <ChatView />;
+}
