@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Status, STATUS_ORDER, STATUS_DOT, todayLocal } from '@/lib/utils';
-import { lessonsFor, weekType, subjectLabel, dayName } from '@/lib/schedule';
+import { lessonsFor, weekType, subjectLabel, dayName, pairState, pairTime } from '@/lib/schedule';
 import { useQuery } from '@/lib/swr';
 import { useMe } from '@/components/MeProvider';
 import { useLang } from '@/components/LanguageProvider';
@@ -18,7 +18,11 @@ export default function TeacherDashboard() {
   const { t, lang } = useLang();
   const { me, students } = useMe();
   const [now, setNow] = useState<Date | null>(null);
-  useEffect(() => setNow(new Date()), []);
+  useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(id);
+  }, []);
 
   const q = useQuery<Today>('t:today', async () => {
     const { data: s } = await supabase
@@ -43,9 +47,14 @@ export default function TeacherDashboard() {
   const attended = counts.present + counts.late;
   const rate = total ? Math.round((attended / total) * 100) : 0;
   const lessons = now ? lessonsFor(now.getDay(), weekType(now)) : [];
-  const stateOf = (subject: string) => {
-    const s = sessions.find((x) => x.subject === subject);
-    return s ? (s.status === 'active' ? 'active' : 'done') : null;
+  // Chip is decided by the clock first, then by what was saved
+  const chipFor = (pair: number, subject: string) => {
+    const sess = sessions.find((x) => x.subject === subject);
+    if (sess?.status === 'closed') return { cls: '!border-ok/30 !bg-ok/10 !text-ok', text: t('dash.done') };
+    const ps = now ? pairState(pair, now) : 'upcoming';
+    if (ps === 'now') return { cls: '!border-info/30 !bg-info/10 !text-info', text: t('dash.inProgress') };
+    if (ps === 'over') return sess ? { cls: '!border-warn/30 !bg-warn/10 !text-warn', text: t('dash.unfinished') } : { cls: '!border-bad/30 !bg-bad/10 !text-bad', text: t('dash.notTaken') };
+    return { cls: '', text: t('dash.upcoming') };
   };
 
   const actions: { href: string; icon: IconName; label: string }[] = [
@@ -106,16 +115,15 @@ export default function TeacherDashboard() {
         ) : (
           <div className="card divide-y divide-line overflow-hidden">
             {lessons.map((l) => {
-              const st = stateOf(l.subject);
+              const chip = chipFor(l.pair, l.subject);
               return (
                 <Link key={l.pair} href="/teacher/attendance" className="flex items-center gap-3 px-4 py-3.5 hover:bg-surface-2">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/15 font-bold text-brand">{l.pair}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[15px] font-semibold">{subjectLabel(l.subject, lang)}</span>
-                    <span className="block truncate text-xs text-muted">{l.teacher || t('sch.vacant')}</span>
+                    <span className="block truncate text-xs text-muted">{pairTime(l.pair)} · {l.teacher || t('sch.vacant')}</span>
                   </span>
-                  {st === 'done' && <span className="chip !border-ok/30 !bg-ok/10 !text-ok">{t('dash.done')}</span>}
-                  {st === 'active' && <span className="chip !border-warn/30 !bg-warn/10 !text-warn">{t('dash.inProgress')}</span>}
+                  <span className={'chip shrink-0 ' + chip.cls}>{chip.text}</span>
                 </Link>
               );
             })}

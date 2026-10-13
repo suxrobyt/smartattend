@@ -50,6 +50,11 @@ const D: Record<string, Entry> = {
     'Нужна помощь? Обратитесь к преподавателю:',
     'Yardım için öğretmeninizle iletişime geçin:',
   ],
+  'login.usernamePh': ['Loginingizni kiriting', 'Enter your login', 'Введите логин', 'Kullanıcı adınızı girin'],
+  'login.contact': ["Yordam so'rash", 'Ask for help', 'Попросить помощи', 'Yardım iste'],
+  'dash.upcoming': ['Kutilmoqda', 'Upcoming', 'Ожидается', 'Bekleniyor'],
+  'dash.unfinished': ['Yakunlanmagan', 'Not finished', 'Не завершено', 'Tamamlanmadı'],
+  'dash.notTaken': ['Davomat olinmagan', 'Not taken', 'Не отмечено', 'Alınmadı'],
   'pw.show': ["Parolni ko'rsatish", 'Show password', 'Показать пароль', 'Şifreyi göster'],
   'pw.hide': ['Parolni yashirish', 'Hide password', 'Скрыть пароль', 'Şifreyi gizle'],
 

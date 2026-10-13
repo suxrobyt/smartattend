@@ -6,6 +6,7 @@ import Icon, { IconName } from './Icon';
 import { useLang } from './LanguageProvider';
 import { askLogout } from './useLogout';
 import LogoutDialog from './LogoutDialog';
+import Logo from './Logo';
 import { MeProvider } from './MeProvider';
 
 type Role = 'teacher' | 'student';
@@ -47,9 +48,7 @@ export default function AppShell({ role, children }: { role: Role; children: Rea
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
           {isRoot ? (
             <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand to-brand-2">
-                <Icon name="check-circle" className="h-[18px] w-[18px] text-[#04101f]" />
-              </span>
+              <Logo size={32} />
               <span className="text-[17px] font-bold tracking-tight">SmartAttend</span>
             </div>
           ) : (

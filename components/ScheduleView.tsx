@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useLang } from './LanguageProvider';
-import { GROUP_LABEL, ROOM, lessonsFor, weekType, mondayOf, addDays, subjectLabel, dayName, dayShort } from '@/lib/schedule';
+import { GROUP_LABEL, ROOM, lessonsFor, weekType, mondayOf, addDays, subjectLabel, dayName, dayShort, pairTime, pairState } from '@/lib/schedule';
 import { PageTitle, Segmented } from './ui';
 import Icon from './Icon';
 
@@ -16,6 +16,8 @@ export default function ScheduleView() {
     const d = new Date();
     setNow(d);
     setDay(d.getDay() === 0 ? 1 : d.getDay());
+    const id = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(id);
   }, []);
 
   if (!now) return null;
@@ -69,12 +71,13 @@ export default function ScheduleView() {
 
       <div className="space-y-3">
         {lessons.map((l) => (
-          <div key={l.pair} className="card flex gap-3.5 p-4">
+          <div key={l.pair} className={'card flex gap-3.5 p-4 ' + (isThisWeek && day === todayDow && pairState(l.pair, now) === 'now' ? '!border-brand' : '')}>
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-lg font-bold text-brand">{l.pair}</span>
             <div className="min-w-0 flex-1">
               <p className="text-[15px] font-semibold leading-snug">{subjectLabel(l.subject, lang)}</p>
               <p className="mt-1 text-sm text-muted">{l.teacher || t('sch.vacant')}</p>
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <span className="chip !border-brand/30 !bg-brand/10 !text-brand">{pairTime(l.pair)}</span>
                 <span className="chip">
                   <Icon name="pin" className="h-3 w-3" />
                   {ROOM}

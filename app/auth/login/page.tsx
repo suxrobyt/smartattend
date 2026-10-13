@@ -7,6 +7,7 @@ import { LANGS, LANG_NATIVE } from '@/lib/i18n';
 import { useLang } from '@/components/LanguageProvider';
 import PasswordInput from '@/components/PasswordInput';
 import Icon from '@/components/Icon';
+import Logo from '@/components/Logo';
 import { Alert } from '@/components/ui';
 import { clearCache } from '@/lib/swr';
 
@@ -47,9 +48,7 @@ export default function LoginPage() {
   return (
     <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col justify-center px-5 py-10">
       <div className="mb-8 text-center">
-        <span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-2 shadow-card">
-          <Icon name="check-circle" className="h-9 w-9 text-[#04101f]" />
-        </span>
+        <span className="mx-auto mb-4 block w-16"><Logo size={64} /></span>
         <h1 className="text-3xl font-bold tracking-tight">SmartAttend</h1>
         <p className="mt-1.5 text-sm text-muted">{t('login.subtitle')}</p>
       </div>
@@ -62,6 +61,7 @@ export default function LoginPage() {
             className="field"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            placeholder={t('login.usernamePh')}
             autoComplete="username"
             autoCapitalize="none"
             autoCorrect="off"
@@ -86,7 +86,8 @@ export default function LoginPage() {
           rel="noopener noreferrer"
           className="font-semibold text-brand underline-offset-2 hover:underline"
         >
-          @Isakovshaxzodbek
+          <Icon name="send" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />
+          {t('login.contact')}
         </a>
       </p>
 

@@ -179,3 +179,30 @@ const LANG_IDX: Record<Lang, number> = { uz: 0, en: 1, ru: 2, tr: 3 };
 
 export const dayName = (d: number, lang: Lang) => DAYS[d][LANG_IDX[lang]];
 export const dayShort = (d: number, lang: Lang) => DAYS_SHORT[d][LANG_IDX[lang]];
+
+// ---------- Pair times (break between pairs: 10 minutes) ----------
+export const PAIR_TIMES: Record<number, [string, string]> = {
+  1: ['09:00', '10:20'],
+  2: ['10:30', '11:50'],
+  3: ['12:00', '13:20'],
+};
+
+export const pairTime = (pair: number) => {
+  const t = PAIR_TIMES[pair];
+  return t ? `${t[0]}–${t[1]}` : '';
+};
+
+const toMin = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+};
+
+// Where a pair is relative to the clock: not started / in progress / finished
+export function pairState(pair: number, now: Date): 'upcoming' | 'now' | 'over' {
+  const t = PAIR_TIMES[pair];
+  if (!t) return 'upcoming';
+  const cur = now.getHours() * 60 + now.getMinutes();
+  if (cur < toMin(t[0])) return 'upcoming';
+  if (cur < toMin(t[1])) return 'now';
+  return 'over';
+}

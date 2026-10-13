@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { useQuery } from '@/lib/swr';
 import { useMe } from '@/components/MeProvider';
 import { Status, STATUS_ORDER, STATUS_SOFT, STATUS_DOT, todayLocal, firstName } from '@/lib/utils';
-import { lessonsFor, weekType, subjectLabel, dayName } from '@/lib/schedule';
+import { lessonsFor, weekType, subjectLabel, dayName, pairState, pairTime } from '@/lib/schedule';
 import { useLang } from '@/components/LanguageProvider';
 import Icon from '@/components/Icon';
 import { Spinner } from '@/components/ui';
@@ -17,7 +17,11 @@ export default function StudentDashboard() {
   const { t, lang } = useLang();
   const [now, setNow] = useState<Date | null>(null);
   const { me } = useMe();
-  useEffect(() => setNow(new Date()), []);
+  useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(id);
+  }, []);
 
   const row = me?.row as { id: string; full_name: string; attendance_percentage: number } | undefined;
   const q = useQuery<Rec[]>(row ? 'st:recs:' + row.id : null, async () => {
@@ -76,17 +80,20 @@ export default function StudentDashboard() {
           <div className="card divide-y divide-line overflow-hidden">
             {lessons.map((l) => {
               const st = statusOf(l.subject);
+              const ps = pairState(l.pair, now);
               return (
                 <div key={l.pair} className="flex items-center gap-3 px-4 py-3.5">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/15 font-bold text-brand">{l.pair}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[15px] font-semibold">{subjectLabel(l.subject, lang)}</span>
-                    <span className="block truncate text-xs text-muted">{l.teacher || t('sch.vacant')}</span>
+                    <span className="block truncate text-xs text-muted">{pairTime(l.pair)} · {l.teacher || t('sch.vacant')}</span>
                   </span>
                   {st ? (
-                    <span className={'rounded-full border px-2 py-0.5 text-xs font-medium ' + STATUS_SOFT[st]}>{t('status.' + st)}</span>
+                    <span className={'shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ' + STATUS_SOFT[st]}>{t('status.' + st)}</span>
                   ) : (
-                    <span className="text-xs text-muted">{t('dash.notMarked')}</span>
+                    <span className="shrink-0 text-xs text-muted">
+                      {ps === 'now' ? t('dash.inProgress') : ps === 'over' ? t('dash.notMarked') : t('dash.upcoming')}
+                    </span>
                   )}
                 </div>
               );

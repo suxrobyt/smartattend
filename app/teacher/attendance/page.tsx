@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Status, STATUS_ORDER, STATUS_SOFT, STATUS_SOLID, todayLocal, nowTime, fmtDate } from '@/lib/utils';
-import { ALL_SUBJECTS, lessonsFor, weekType, subjectLabel } from '@/lib/schedule';
+import { ALL_SUBJECTS, lessonsFor, weekType, subjectLabel, pairTime } from '@/lib/schedule';
 import { useQuery } from '@/lib/swr';
 import { useMe } from '@/components/MeProvider';
 import { useLang } from '@/components/LanguageProvider';
@@ -302,7 +302,7 @@ export default function AttendancePage() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[15px] font-semibold">{subjectLabel(l.subject, lang)}</p>
                     <p className="text-xs text-muted">
-                      {t('att.pair', { n: l.pair })}
+                      {t('att.pair', { n: l.pair })} · {pairTime(l.pair)}
                       {s && ` · ${s.status === 'active' ? t('att.active') : t('att.finished')}`}
                     </p>
                   </div>
