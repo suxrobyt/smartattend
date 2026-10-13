@@ -1,26 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useState } from 'react';
+import { useMe } from '@/components/MeProvider';
 import { useLang } from '@/components/LanguageProvider';
 import Avatar from '@/components/Avatar';
 import Icon from '@/components/Icon';
 import { PageTitle, Spinner } from '@/components/ui';
 
-type S = { id: string; full_name: string; username: string; user_id: string | null; attendance_percentage: number };
-
 export default function StudentsPage() {
   const { t } = useLang();
-  const [list, setList] = useState<S[] | null>(null);
+  const { students: list } = useMe();
   const [q, setQ] = useState('');
-
-  useEffect(() => {
-    supabase
-      .from('students')
-      .select('id, full_name, username, user_id, attendance_percentage')
-      .order('full_name')
-      .then(({ data }) => setList((data as S[]) || []));
-  }, []);
 
   if (!list) return <Spinner label={t('common.loading')} />;
   const f = q.trim().toLowerCase();

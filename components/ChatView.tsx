@@ -43,22 +43,23 @@ export default function ChatView() {
     let ch: ReturnType<typeof supabase.channel> | null = null;
     let timer: ReturnType<typeof setInterval> | null = null;
     (async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-      setMe(u.user.id);
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user.id;
+      if (!uid) return;
+      setMe(uid);
       const { data: ppl, error: e1 } = await supabase.rpc('chat_people');
       if (e1) {
         setNotSetup(true);
         setReady(true);
         return;
       }
-      setPeople(((ppl as Person[]) || []).filter((p) => p.user_id !== u.user!.id));
+      setPeople(((ppl as Person[]) || []).filter((p) => p.user_id !== uid));
       const { data: g } = await supabase.rpc('my_group_id');
       setGroup((g as string) || null);
       await loadMsgs();
       setReady(true);
       ch = supabase
-        .channel('chat-' + u.user.id)
+        .channel('chat-' + uid)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => loadMsgs())
         .subscribe();
       timer = setInterval(loadMsgs, 6000);

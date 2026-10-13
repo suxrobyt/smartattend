@@ -5,12 +5,12 @@ import { supabase } from '@/lib/supabase';
 import { useLang } from './LanguageProvider';
 import PasswordInput from './PasswordInput';
 import { Alert } from './ui';
-import { useLogout } from './useLogout';
+import { useSignOut } from './useLogout';
 
 // Change my own password (teacher or student)
 export default function PasswordChangeForm() {
   const { t } = useLang();
-  const logout = useLogout();
+  const logout = useSignOut();
   const [cur, setCur] = useState('');
   const [next, setNext] = useState('');
   const [again, setAgain] = useState('');

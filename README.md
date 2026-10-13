@@ -3,7 +3,7 @@
 Next.js 14 + Supabase. Tillar: O'zbek / English / Русский / Türkçe.
 
 ## Yangilash tartibi
-1. Supabase → SQL Editor: `supabase/update-1.sql` ni bir marta ishga tushiring.
+1. Supabase → SQL Editor: `supabase/update-1.sql`, so'ng `supabase/update-2.sql` ni bir martadan ishga tushiring.
 2. Kodni GitHub'ga yuklang (Vercel o'zi qayta quradi).
 3. Vercel → Settings → Environment Variables: `SUPABASE_SERVICE_ROLE_KEY` bo'lishi shart (parol o'rnatish uchun). Faqat Vercel'da saqlang.
 

@@ -8,6 +8,7 @@ import { useLang } from '@/components/LanguageProvider';
 import PasswordInput from '@/components/PasswordInput';
 import Icon from '@/components/Icon';
 import { Alert } from '@/components/ui';
+import { clearCache } from '@/lib/swr';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function LoginPage() {
         setError(t('login.invalid'));
         return;
       }
+      clearCache();
       const role = data.user.user_metadata?.role;
       router.refresh();
       router.push(role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard');
@@ -60,7 +62,6 @@ export default function LoginPage() {
             className="field"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder={t('login.usernamePh')}
             autoComplete="username"
             autoCapitalize="none"
             autoCorrect="off"
@@ -77,7 +78,17 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <p className="mt-4 text-center text-xs text-muted">{t('login.help')}</p>
+      <p className="mt-4 text-center text-xs leading-relaxed text-muted">
+        {t('login.help')}{' '}
+        <a
+          href="https://t.me/Isakovshaxzodbek"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-brand underline-offset-2 hover:underline"
+        >
+          @Isakovshaxzodbek
+        </a>
+      </p>
 
       <div className="mt-6 flex flex-wrap justify-center gap-2">
         {LANGS.map((l) => (

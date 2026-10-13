@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+
 import { supabase } from '@/lib/supabase';
+import { useQuery } from '@/lib/swr';
+import { useMe } from '@/components/MeProvider';
 import { Status, STATUS_SOFT, fmtDate } from '@/lib/utils';
 import { subjectLabel } from '@/lib/schedule';
 import { useLang } from '@/components/LanguageProvider';
@@ -11,30 +13,22 @@ type Rec = { id: string; status: Status; attendance_sessions: { subject: string;
 
 export default function StudentHistory() {
   const { t, lang } = useLang();
-  const [rows, setRows] = useState<Rec[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { me } = useMe();
+  const row = me?.row as { id: string } | undefined;
+  const q = useQuery<Rec[]>(row ? 'st:hist:' + row.id : null, async () => {
+    const { data, error } = await supabase
+      .from('attendance_records')
+      .select('id, status, attendance_sessions(subject, session_date)')
+      .eq('student_id', row!.id);
+    if (error) throw error;
+    const list = ((data as any) || []) as Rec[];
+    list.sort((a, b) => (b.attendance_sessions?.session_date || '').localeCompare(a.attendance_sessions?.session_date || ''));
+    return list;
+  });
+  const rows = q.data || [];
+  const error = q.error;
 
-  useEffect(() => {
-    (async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-      const { data: me } = await supabase.from('students').select('id').eq('user_id', u.user.id).maybeSingle();
-      if (me) {
-        const { data, error: e } = await supabase
-          .from('attendance_records')
-          .select('id, status, attendance_sessions(subject, session_date)')
-          .eq('student_id', me.id);
-        if (e) setError(e.message);
-        const list = ((data as any) || []) as Rec[];
-        list.sort((a, b) => (b.attendance_sessions?.session_date || '').localeCompare(a.attendance_sessions?.session_date || ''));
-        setRows(list);
-      }
-      setLoading(false);
-    })();
-  }, []);
-
-  if (loading) return <Spinner label={t('common.loading')} />;
+  if (me === undefined || (row && q.data === undefined && !error)) return <Spinner label={t('common.loading')} />;
   return (
     <div className="space-y-4">
       <PageTitle title={t('myhist.title')} />

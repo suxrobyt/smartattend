@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Icon, { IconName } from './Icon';
 import { useLang } from './LanguageProvider';
-import { useLogout } from './useLogout';
+import { askLogout } from './useLogout';
+import LogoutDialog from './LogoutDialog';
+import { MeProvider } from './MeProvider';
 
 type Role = 'teacher' | 'student';
 type Item = { href: string; key: string; icon: IconName; also?: string[] };
@@ -31,7 +33,6 @@ const under = (p: string, base: string) => p === base || p.startsWith(base + '/'
 export default function AppShell({ role, children }: { role: Role; children: React.ReactNode }) {
   const pathname = usePathname() || '';
   const { t } = useLang();
-  const logout = useLogout();
   const items = NAV[role];
   const home = items[0].href;
   const isRoot = items.some((i) => i.href === pathname);
@@ -58,7 +59,7 @@ export default function AppShell({ role, children }: { role: Role; children: Rea
             </Link>
           )}
           <button
-            onClick={logout}
+            onClick={askLogout}
             aria-label={t('common.logout')}
             className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-surface text-muted hover:text-ink"
           >
@@ -67,7 +68,7 @@ export default function AppShell({ role, children }: { role: Role; children: Rea
         </div>
       </header>
 
-      <main className={fullBleed ? 'mx-auto w-full max-w-2xl' : 'mx-auto w-full max-w-2xl px-4 pb-28 pt-5'}>{children}</main>
+      <main className={fullBleed ? 'mx-auto w-full max-w-2xl' : 'mx-auto w-full max-w-2xl px-4 pb-28 pt-5'}><MeProvider role={role}>{children}</MeProvider></main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
         <div className="mx-auto grid h-16 max-w-2xl grid-cols-5">
@@ -87,6 +88,7 @@ export default function AppShell({ role, children }: { role: Role; children: Rea
           })}
         </div>
       </nav>
+      <LogoutDialog />
     </div>
   );
 }

@@ -3,55 +3,46 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Status, STATUS_ORDER, STATUS_DOT, todayLocal, firstName } from '@/lib/utils';
+import { Status, STATUS_ORDER, STATUS_DOT, todayLocal } from '@/lib/utils';
 import { lessonsFor, weekType, subjectLabel, dayName } from '@/lib/schedule';
+import { useQuery } from '@/lib/swr';
+import { useMe } from '@/components/MeProvider';
 import { useLang } from '@/components/LanguageProvider';
-import Icon, { IconName } from '@/components/Icon';
-import { IconTile, Spinner } from '@/components/ui';
+import { IconTile } from '@/components/ui';
+import { IconName } from '@/components/Icon';
 
 type Sess = { id: string; subject: string; status: string; created_at: string };
+type Today = { sessions: Sess[]; counts: Record<Status, number> };
 
 export default function TeacherDashboard() {
   const { t, lang } = useLang();
+  const { me, students } = useMe();
   const [now, setNow] = useState<Date | null>(null);
-  const [name, setName] = useState('');
-  const [total, setTotal] = useState(0);
-  const [sessions, setSessions] = useState<Sess[]>([]);
-  const [counts, setCounts] = useState<Record<Status, number>>({ present: 0, late: 0, absent: 0, excused: 0 });
-  const [loading, setLoading] = useState(true);
+  useEffect(() => setNow(new Date()), []);
 
-  useEffect(() => {
-    setNow(new Date());
-    (async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (u.user) {
-        const { data: me } = await supabase.from('teachers').select('full_name').eq('user_id', u.user.id).maybeSingle();
-        if (me) setName(me.full_name);
-      }
-      const { count } = await supabase.from('students').select('id', { count: 'exact', head: true });
-      setTotal(count || 0);
-      const { data: s } = await supabase
-        .from('attendance_sessions')
-        .select('id, subject, status, created_at')
-        .eq('session_date', todayLocal())
-        .order('created_at', { ascending: false });
-      setSessions((s as Sess[]) || []);
-      if (s && s[0]) {
-        const { data: r } = await supabase.from('attendance_records').select('status').eq('session_id', s[0].id);
-        const c: Record<Status, number> = { present: 0, late: 0, absent: 0, excused: 0 };
-        (r || []).forEach((x: any) => (c[x.status as Status] += 1));
-        setCounts(c);
-      }
-      setLoading(false);
-    })();
-  }, []);
+  const q = useQuery<Today>('t:today', async () => {
+    const { data: s } = await supabase
+      .from('attendance_sessions')
+      .select('id, subject, status, created_at')
+      .eq('session_date', todayLocal())
+      .order('created_at', { ascending: false });
+    const sessions = (s as Sess[]) || [];
+    const counts: Record<Status, number> = { present: 0, late: 0, absent: 0, excused: 0 };
+    if (sessions[0]) {
+      const { data: r } = await supabase.from('attendance_records').select('status').eq('session_id', sessions[0].id);
+      (r || []).forEach((x: any) => (counts[x.status as Status] += 1));
+    }
+    return { sessions, counts };
+  });
 
-  if (loading || !now) return <Spinner label={t('common.loading')} />;
-
+  const name = (me?.row as any)?.full_name || '';
+  const total = students?.length ?? 0;
+  const sessions = q.data?.sessions || [];
+  const counts = q.data?.counts || { present: 0, late: 0, absent: 0, excused: 0 };
   const last = sessions[0];
   const attended = counts.present + counts.late;
   const rate = total ? Math.round((attended / total) * 100) : 0;
-  const lessons = lessonsFor(now.getDay(), weekType(now));
+  const lessons = now ? lessonsFor(now.getDay(), weekType(now)) : [];
   const stateOf = (subject: string) => {
     const s = sessions.find((x) => x.subject === subject);
     return s ? (s.status === 'active' ? 'active' : 'done') : null;
@@ -68,9 +59,10 @@ export default function TeacherDashboard() {
     <div className="space-y-6">
       <div>
         <p className="text-sm text-muted">
-          {t('dash.hello')} · {dayName(now.getDay(), lang)}
+          {t('dash.hello')}
+          {now ? ' · ' + dayName(now.getDay(), lang) : ''}
         </p>
-        <h1 className="text-[26px] font-bold leading-tight tracking-tight">{name || '…'}</h1>
+        <h1 className="min-h-[2rem] text-[26px] font-bold leading-tight tracking-tight">{name}</h1>
       </div>
 
       <section className="card relative overflow-hidden p-5">
@@ -99,7 +91,7 @@ export default function TeacherDashboard() {
           </>
         ) : (
           <>
-            <p className="mt-2 text-[15px] font-medium">{t('dash.noneYet')}</p>
+            <p className="mt-2 text-[15px] font-medium">{q.loading ? t('common.loading') : t('dash.noneYet')}</p>
             <p className="mt-1 text-sm text-muted">
               {t('dash.total')}: {total}
             </p>
@@ -109,7 +101,7 @@ export default function TeacherDashboard() {
 
       <section>
         <h2 className="mb-3 text-lg font-bold">{t('dash.todayLessons')}</h2>
-        {lessons.length === 0 ? (
+        {now && lessons.length === 0 ? (
           <p className="text-sm text-muted">{t('dash.noLessons')}</p>
         ) : (
           <div className="card divide-y divide-line overflow-hidden">

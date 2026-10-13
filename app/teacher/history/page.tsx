@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Status, STATUS_ORDER, STATUS_SOFT, fmtDate } from '@/lib/utils';
 import { subjectLabel } from '@/lib/schedule';
+import { useQuery } from '@/lib/swr';
 import { useLang } from '@/components/LanguageProvider';
 import Icon from '@/components/Icon';
 import { Alert, Empty, PageTitle, Spinner } from '@/components/ui';
@@ -13,41 +15,31 @@ type Rec = { session_id: string; status: Status; students: { full_name: string }
 
 export default function HistoryPage() {
   const { t, lang } = useLang();
-  const [sessions, setSessions] = useState<Sess[]>([]);
-  const [records, setRecords] = useState<Rec[]>([]);
+  const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  useEffect(() => {
-    (async () => {
-      const { data: s, error: e } = await supabase
-        .from('attendance_sessions')
-        .select('id, subject, session_date, status')
-        .order('session_date', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(40);
-      if (e) {
-        setError(e.message);
-        setLoading(false);
-        return;
-      }
-      setSessions((s as Sess[]) || []);
-      const ids = (s || []).map((x: any) => x.id);
-      if (ids.length) {
-        const { data: r } = await supabase
-          .from('attendance_records')
-          .select('session_id, status, students(full_name)')
-          .in('session_id', ids);
-        setRecords((r as any) || []);
-      }
-      setLoading(false);
-    })();
-  }, []);
+  const { data, error } = useQuery<{ sessions: Sess[]; records: Rec[] }>('t:history', async () => {
+    const { data: s, error: e } = await supabase
+      .from('attendance_sessions')
+      .select('id, subject, session_date, status')
+      .order('session_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(40);
+    if (e) throw e;
+    const ids = (s || []).map((x: any) => x.id);
+    let records: Rec[] = [];
+    if (ids.length) {
+      const { data: r } = await supabase.from('attendance_records').select('session_id, status, students(full_name)').in('session_id', ids);
+      records = ((r as any) || []) as Rec[];
+    }
+    return { sessions: ((s as Sess[]) || []) as Sess[], records };
+  });
+  const sessions = data?.sessions || [];
+  const records = data?.records || [];
 
   const countFor = (sid: string, st: Status) => records.filter((r) => r.session_id === sid && r.status === st).length;
 
-  if (loading) return <Spinner label={t('common.loading')} />;
+  if (!data && !error) return <Spinner label={t('common.loading')} />;
 
   return (
     <div className="space-y-4">
@@ -76,6 +68,11 @@ export default function HistoryPage() {
               </button>
               {isOpen && (
                 <div className="divide-y divide-line border-t border-line bg-surface-2/40">
+                  <div className="p-3">
+                    <button type="button" className="btn-soft w-full !py-2.5 text-sm" onClick={() => router.push('/teacher/attendance?open=' + s.id)}>
+                      {t('att.reopen')}
+                    </button>
+                  </div>
                   {recs.map((r, i) => (
                     <div key={i} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
                       <span className="truncate">{r.students?.full_name}</span>

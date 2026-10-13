@@ -1,31 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useMe } from './MeProvider';
 import { useLang } from './LanguageProvider';
-import { useLogout } from './useLogout';
+import { askLogout } from './useLogout';
 import Icon, { IconName } from './Icon';
 import Avatar from './Avatar';
 import { IconTile, PageTitle } from './ui';
 
 export default function SettingsMenu({ role }: { role: 'teacher' | 'student' }) {
   const { t, lang } = useLang();
-  const logout = useLogout();
-  const [me, setMe] = useState<{ full_name: string; username: string } | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-      const { data } = await supabase
-        .from(role === 'teacher' ? 'teachers' : 'students')
-        .select('full_name, username')
-        .eq('user_id', u.user.id)
-        .maybeSingle();
-      if (data) setMe(data as any);
-    })();
-  }, [role]);
+  const { me: meCtx } = useMe();
+  const me = meCtx?.row as { full_name: string; username: string } | undefined;
 
   const base = `/${role}/settings`;
   const rows: { href: string; icon: IconName; title: string; desc: string }[] = [
@@ -62,7 +48,7 @@ export default function SettingsMenu({ role }: { role: 'teacher' | 'student' }) 
           <IconTile name="globe" tone="info" />
           <span className="flex-1 text-[15px] font-semibold">{t('lang.' + lang)}</span>
         </div>
-        <button type="button" onClick={logout} className="flex w-full items-center gap-3.5 px-4 py-3.5 text-left hover:bg-bad/5">
+        <button type="button" onClick={askLogout} className="flex w-full items-center gap-3.5 px-4 py-3.5 text-left hover:bg-bad/5">
           <IconTile name="logout" tone="bad" />
           <span className="min-w-0 flex-1">
             <span className="block text-[15px] font-semibold text-bad">{t('set.logout')}</span>

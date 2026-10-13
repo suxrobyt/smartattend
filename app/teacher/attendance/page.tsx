@@ -2,79 +2,107 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Status, STATUS_ORDER, STATUS_SOLID, STATUS_SOFT, todayLocal, nowTime, fmtDate } from '@/lib/utils';
+import { Status, STATUS_ORDER, STATUS_SOFT, STATUS_SOLID, todayLocal, nowTime, fmtDate } from '@/lib/utils';
 import { ALL_SUBJECTS, lessonsFor, weekType, subjectLabel } from '@/lib/schedule';
+import { useQuery } from '@/lib/swr';
+import { useMe } from '@/components/MeProvider';
 import { useLang } from '@/components/LanguageProvider';
 import Avatar from '@/components/Avatar';
+import Icon from '@/components/Icon';
 import { Alert, PageTitle, Spinner } from '@/components/ui';
 
-type Stu = { id: string; full_name: string };
 type Teacher = { id: string; group_id: string };
 type Sess = { id: string; subject: string; session_date: string; status: string };
 
 export default function AttendancePage() {
   const { t, lang } = useLang();
-  const [teacher, setTeacher] = useState<Teacher | null>(null);
-  const [students, setStudents] = useState<Stu[]>([]);
-  const [today, setToday] = useState<Sess[]>([]);
+  const { me, students: allStudents } = useMe();
+  const [lessons, setLessons] = useState<ReturnType<typeof lessonsFor>>([]);
   const [session, setSession] = useState<Sess | null>(null);
   const [marks, setMarks] = useState<Record<string, Status>>({});
-  const [lessons, setLessons] = useState<ReturnType<typeof lessonsFor>>([]);
   const [manual, setManual] = useState(ALL_SUBJECTS[0]);
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [reopened, setReopened] = useState(false);
 
-  async function loadToday(tid: string) {
+  const row = me?.row as { id: string; group_id: string } | undefined;
+  const teacher: Teacher | null = row ? { id: row.id, group_id: row.group_id } : null;
+  const students = (allStudents || []).filter((s) => !teacher || s.group_id === teacher.group_id);
+
+  const q = useQuery<Sess[]>(teacher ? 'att:today:' + teacher.id : null, async () => {
     const { data } = await supabase
       .from('attendance_sessions')
       .select('id, subject, session_date, status')
-      .eq('teacher_id', tid)
+      .eq('teacher_id', teacher!.id)
       .eq('session_date', todayLocal())
       .order('created_at', { ascending: true });
-    setToday((data as Sess[]) || []);
-  }
+    return (data as Sess[]) || [];
+  });
+  const today = q.data || [];
+  const reload = q.reload;
 
   useEffect(() => {
+    const d = new Date();
+    setLessons(lessonsFor(d.getDay(), weekType(d)));
+  }, []);
+
+  // Opened from History with ?open=<session id>
+  useEffect(() => {
+    if (!teacher) return;
+    const id = new URLSearchParams(window.location.search).get('open');
+    if (!id) return;
+    window.history.replaceState(null, '', window.location.pathname);
     (async () => {
-      const d = new Date();
-      setLessons(lessonsFor(d.getDay(), weekType(d)));
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-      const { data: tr } = await supabase.from('teachers').select('id, group_id').eq('user_id', u.user.id).maybeSingle();
-      if (!tr) {
-        setError(t('att.noTeacher'));
-        setLoading(false);
-        return;
-      }
-      setTeacher(tr as Teacher);
-      const { data: st } = await supabase.from('students').select('id, full_name').eq('group_id', tr.group_id).order('full_name');
-      setStudents((st as Stu[]) || []);
-      await loadToday(tr.id);
-      setLoading(false);
+      const { data: s } = await supabase.from('attendance_sessions').select('id, subject, session_date, status').eq('id', id).maybeSingle();
+      if (s) await reopen(s as Sess);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [teacher?.id]);
+
+  function patchToday(next: Sess[]) {
+    q.mutate(next);
+  }
 
   async function openSession(s: Sess) {
     setError('');
     setSaved(false);
-    const { data } = await supabase.from('attendance_records').select('student_id, status').eq('session_id', s.id);
+    const { data: recs } = await supabase.from('attendance_records').select('student_id, status').eq('session_id', s.id);
     const m: Record<string, Status> = {};
-    (data || []).forEach((r: any) => (m[r.student_id] = r.status));
+    (recs || []).forEach((r: any) => (m[r.student_id] = r.status));
     setMarks(m);
     setSession(s);
     window.scrollTo({ top: 0 });
   }
 
+  // Finished attendance can be opened again for corrections
+  async function reopen(s: Sess) {
+    setBusy(true);
+    let cur = s;
+    if (s.status !== 'active') {
+      const { error: e } = await supabase.from('attendance_sessions').update({ status: 'active' }).eq('id', s.id);
+      if (e) {
+        setBusy(false);
+        return setError(t('att.saveFailed') + ': ' + e.message);
+      }
+      cur = { ...s, status: 'active' };
+      patchToday(today.map((x) => (x.id === s.id ? cur : x)));
+    }
+    await openSession(cur);
+    setReopened(s.status !== 'active');
+    setBusy(false);
+  }
+
   async function start(subject: string) {
     if (!teacher) return;
     const existing = today.find((x) => x.subject === subject);
-    if (existing) return openSession(existing);
+    if (existing) {
+      setReopened(false);
+      return existing.status === 'active' ? openSession(existing) : reopen(existing);
+    }
     setBusy(true);
     setError('');
-    const { data, error: e } = await supabase
+    const { data: created, error: e } = await supabase
       .from('attendance_sessions')
       .insert({
         group_id: teacher.group_id,
@@ -88,22 +116,32 @@ export default function AttendancePage() {
       .select('id, subject, session_date, status')
       .single();
     setBusy(false);
-    if (e || !data) return setError(t('att.saveFailed') + ': ' + (e?.message || ''));
+    if (e || !created) return setError(t('att.saveFailed') + ': ' + (e?.message || ''));
     setMarks({});
-    setSession(data as Sess);
-    setToday((x) => [...x, data as Sess]);
+    setReopened(false);
+    setSession(created as Sess);
+    patchToday([...today, created as Sess]);
   }
 
+  // Tap a status to set it; tap the same status again to take it back
   async function mark(id: string, status: Status) {
     if (!session || !teacher) return;
     const prev = marks[id];
-    setMarks((m) => ({ ...m, [id]: status }));
-    const { error: e } = await supabase.from('attendance_records').upsert(
-      { session_id: session.id, student_id: id, status, marked_at: new Date().toISOString(), marked_by: teacher.id },
-      { onConflict: 'session_id,student_id' }
-    );
-    if (e) {
-      setError(t('att.saveFailed') + ': ' + e.message);
+    const undo = prev === status;
+    setMarks((m) => {
+      const c = { ...m };
+      if (undo) delete c[id];
+      else c[id] = status;
+      return c;
+    });
+    const res = undo
+      ? await supabase.from('attendance_records').delete().eq('session_id', session.id).eq('student_id', id)
+      : await supabase.from('attendance_records').upsert(
+          { session_id: session.id, student_id: id, status, marked_at: new Date().toISOString(), marked_by: teacher.id },
+          { onConflict: 'session_id,student_id' }
+        );
+    if (res.error) {
+      setError(t('att.saveFailed') + ': ' + res.error.message);
       setMarks((m) => {
         const c = { ...m };
         if (prev) c[id] = prev;
@@ -126,6 +164,17 @@ export default function AttendancePage() {
     setError('');
   }
 
+  async function clearAll() {
+    if (!session) return;
+    if (!window.confirm(t('att.clear') + '?')) return;
+    setBusy(true);
+    const { error: e } = await supabase.from('attendance_records').delete().eq('session_id', session.id);
+    setBusy(false);
+    if (e) return setError(t('att.saveFailed') + ': ' + e.message);
+    setMarks({});
+    setError('');
+  }
+
   async function finish() {
     if (!session || !teacher) return;
     setBusy(true);
@@ -141,22 +190,38 @@ export default function AttendancePage() {
     const { error: e2 } = await supabase.from('attendance_sessions').update({ status: 'closed' }).eq('id', session.id);
     setBusy(false);
     if (e2) return setError(t('att.saveFailed') + ': ' + e2.message);
-    await loadToday(teacher.id);
+    patchToday(today.map((x) => (x.id === session.id ? { ...x, status: 'closed' } : x)));
     setSession(null);
     setMarks({});
     setSaved(true);
+    reload();
     window.scrollTo({ top: 0 });
   }
 
-  if (loading) return <Spinner label={t('common.loading')} />;
+  if (me === undefined) return <Spinner label={t('common.loading')} />;
+  if (!teacher) return <Alert kind="error">{t('att.noTeacher')}</Alert>;
+  if (q.data === undefined || allStudents === undefined) return <Spinner label={t('common.loading')} />;
 
   // ---------- marking screen ----------
   if (session) {
     const count = (st: Status) => Object.values(marks).filter((v) => v === st).length;
     const marked = Object.keys(marks).length;
     return (
-      <div className="pb-24">
+      <div className="pb-28">
+        <button
+          type="button"
+          onClick={() => {
+            setSession(null);
+            setReopened(false);
+            reload();
+          }}
+          className="-ml-1 mb-3 flex items-center gap-1 text-sm font-semibold text-brand"
+        >
+          <Icon name="chevron-left" className="h-[18px] w-[18px]" />
+          {t('att.back')}
+        </button>
         <PageTitle title={subjectLabel(session.subject, lang)} subtitle={`${fmtDate(session.session_date)} · ${t('att.marked', { a: marked, b: students.length })}`} />
+        {reopened && <div className="mb-3"><Alert kind="info">{t('att.reopenHint')}</Alert></div>}
         <div className="mb-4 grid grid-cols-4 gap-2">
           {STATUS_ORDER.map((st) => (
             <div key={st} className={'rounded-xl border px-2 py-2 text-center ' + STATUS_SOFT[st]}>
@@ -165,9 +230,15 @@ export default function AttendancePage() {
             </div>
           ))}
         </div>
-        <button type="button" className="btn-soft mb-4 w-full" disabled={busy} onClick={() => markAll('present')}>
-          {t('att.allPresent')}
-        </button>
+        <div className="mb-2 grid grid-cols-2 gap-2">
+          <button type="button" className="btn-soft" disabled={busy} onClick={() => markAll('present')}>
+            {t('att.allPresent')}
+          </button>
+          <button type="button" className="btn-danger" disabled={busy || marked === 0} onClick={clearAll}>
+            {t('att.clear')}
+          </button>
+        </div>
+        <p className="mb-4 text-center text-xs text-muted">{t('att.tapAgain')}</p>
         {error && <div className="mb-3"><Alert kind="error">{error}</Alert></div>}
         <div className="space-y-2.5">
           {students.map((s, i) => (
@@ -236,7 +307,7 @@ export default function AttendancePage() {
                     </p>
                   </div>
                   <button type="button" disabled={busy} onClick={() => start(l.subject)} className={s ? 'btn-soft !px-3 !py-2 text-sm' : 'btn-primary !px-3.5 !py-2 text-sm'}>
-                    {!s ? t('att.start') : s.status === 'active' ? t('att.continue') : t('att.edit')}
+                    {!s ? t('att.start') : s.status === 'active' ? t('att.continue') : t('att.reopen')}
                   </button>
                 </div>
               );
@@ -255,7 +326,7 @@ export default function AttendancePage() {
           ))}
         </select>
         <button type="button" className="btn-soft w-full" disabled={busy} onClick={() => start(manual)}>
-          {t('att.start')}
+          {today.find((x) => x.subject === manual)?.status === 'closed' ? t('att.reopen') : t('att.start')}
         </button>
       </section>
     </div>

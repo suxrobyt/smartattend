@@ -39,17 +39,16 @@ const D: Record<string, Entry> = {
   // ---- login
   'login.subtitle': ['Onlayn davomat tizimi', 'Online attendance system', 'Онлайн-система посещаемости', 'Çevrimiçi yoklama sistemi'],
   'login.username': ['Login', 'Login', 'Логин', 'Kullanıcı adı'],
-  'login.usernamePh': ['Masalan: Suxrob-9.26', 'e.g. Suxrob-9.26', 'Например: Suxrob-9.26', 'Örn: Suxrob-9.26'],
   'login.password': ['Parol', 'Password', 'Пароль', 'Şifre'],
   'login.passwordPh': ['Parolingizni kiriting', 'Enter your password', 'Введите пароль', 'Şifrenizi girin'],
   'login.submit': ['Kirish', 'Sign in', 'Войти', 'Giriş yap'],
   'login.submitting': ['Kirilmoqda...', 'Signing in...', 'Вход...', 'Giriş yapılıyor...'],
   'login.invalid': ["Login yoki parol noto'g'ri", 'Incorrect login or password', 'Неверный логин или пароль', 'Kullanıcı adı veya şifre hatalı'],
   'login.help': [
-    "Login: Ism-9.26 ko'rinishida. Yordam kerak bo'lsa, o'qituvchingizga murojaat qiling.",
-    'Login looks like Name-9.26. Need help? Ask your teacher.',
-    'Логин в виде Имя-9.26. Нужна помощь? Обратитесь к преподавателю.',
-    'Kullanıcı adı İsim-9.26 biçimindedir. Yardım için öğretmeninize başvurun.',
+    "Yordam kerak bo'lsa, o'qituvchingizga murojaat qiling:",
+    'Need help? Contact your teacher:',
+    'Нужна помощь? Обратитесь к преподавателю:',
+    'Yardım için öğretmeninizle iletişime geçin:',
   ],
   'pw.show': ["Parolni ko'rsatish", 'Show password', 'Показать пароль', 'Şifreyi göster'],
   'pw.hide': ['Parolni yashirish', 'Hide password', 'Скрыть пароль', 'Şifreyi gizle'],
@@ -110,6 +109,11 @@ const D: Record<string, Entry> = {
   'att.allPresent': ['Hammasini "Keldi" qilish', 'Mark everyone present', 'Отметить всех присутствующими', 'Hepsini geldi işaretle'],
   'att.finish': ['Darsni yakunlash', 'Finish lesson', 'Завершить занятие', 'Dersi bitir'],
   'att.unmarkedNote': ['Belgilanmaganlar "Kelmadi" bo\'ladi', 'Unmarked students count as absent', 'Неотмеченные будут отсутствующими', 'İşaretlenmeyenler gelmedi sayılır'],
+  'att.reopen': ['Darsni qayta ochish', 'Reopen lesson', 'Открыть занятие снова', 'Dersi yeniden aç'],
+  'att.closedNote': ['Dars yakunlangan. Tahrirlash uchun qayta oching.', 'This lesson is finished. Reopen it to edit.', 'Занятие завершено. Откройте его снова, чтобы изменить.', 'Bu ders tamamlandı. Düzenlemek için yeniden açın.'],
+  'att.clear': ['Belgilarni tozalash', 'Clear all marks', 'Сбросить все отметки', 'Tüm işaretleri temizle'],
+  'att.tapAgain': ['Xato belgilangan bo\'lsa, o\'sha tugmani yana bosing — belgi bekor bo\'ladi', 'Marked by mistake? Tap the same button again to undo', 'Ошиблись? Нажмите ту же кнопку ещё раз, чтобы отменить', 'Yanlış mı işaretlendi? Aynı düğmeye tekrar dokunun'],
+  'att.back': ['Darslar ro\'yxati', 'Lesson list', 'Список занятий', 'Ders listesi'],
   'att.saved': ['Davomat saqlandi', 'Attendance saved', 'Посещаемость сохранена', 'Yoklama kaydedildi'],
   'att.saveFailed': ['Saqlanmadi', 'Could not save', 'Не удалось сохранить', 'Kaydedilemedi'],
   'att.noTeacher': ["O'qituvchi profili topilmadi", 'Teacher profile not found', 'Профиль преподавателя не найден', 'Öğretmen profili bulunamadı'],
@@ -173,6 +177,12 @@ const D: Record<string, Entry> = {
   ],
   'chat.noPeople': ['Hech kim topilmadi', 'Nobody found', 'Никого не найдено', 'Kimse bulunamadı'],
   'chat.you': ['Siz', 'You', 'Вы', 'Siz'],
+
+  // ---- confirm / undo / reopen
+  'common.cancel': ['Bekor qilish', 'Cancel', 'Отмена', 'İptal'],
+  'logout.title': ['Chiqish', 'Log out', 'Выход', 'Çıkış'],
+  'logout.confirm': ['Hisobingizdan chiqishni xohlaysizmi?', 'Are you sure you want to log out?', 'Вы уверены, что хотите выйти?', 'Çıkış yapmak istediğinizden emin misiniz?'],
+  'att.reopenHint': ['Davomat qayta ochildi. Tahrirlab, yana yakunlang.', 'Attendance reopened. Edit it and finish again.', 'Посещаемость открыта заново. Измените и завершите снова.', 'Yoklama yeniden açıldı. Düzenleyip tekrar bitirin.'],
 
   // ---- settings
   'set.title': ['Sozlamalar', 'Settings', 'Настройки', 'Ayarlar'],

@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useQuery } from '@/lib/swr';
+import { useMe } from '@/components/MeProvider';
 import { Status, STATUS_ORDER, STATUS_SOFT, STATUS_DOT, todayLocal, firstName } from '@/lib/utils';
 import { lessonsFor, weekType, subjectLabel, dayName } from '@/lib/schedule';
 import { useLang } from '@/components/LanguageProvider';
@@ -14,34 +16,25 @@ type Rec = { status: Status; attendance_sessions: { subject: string; session_dat
 export default function StudentDashboard() {
   const { t, lang } = useLang();
   const [now, setNow] = useState<Date | null>(null);
-  const [name, setName] = useState('');
-  const [pct, setPct] = useState(0);
-  const [recs, setRecs] = useState<Rec[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { me } = useMe();
+  useEffect(() => setNow(new Date()), []);
 
-  useEffect(() => {
-    setNow(new Date());
-    (async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-      const { data: me } = await supabase.from('students').select('id, full_name, attendance_percentage').eq('user_id', u.user.id).maybeSingle();
-      if (me) {
-        setName(me.full_name);
-        setPct(Math.round(Number(me.attendance_percentage) || 0));
-        const { data } = await supabase
-          .from('attendance_records')
-          .select('status, attendance_sessions(subject, session_date)')
-          .eq('student_id', me.id);
-        setRecs((data as any) || []);
-      }
-      setLoading(false);
-    })();
-  }, []);
+  const row = me?.row as { id: string; full_name: string; attendance_percentage: number } | undefined;
+  const q = useQuery<Rec[]>(row ? 'st:recs:' + row.id : null, async () => {
+    const { data } = await supabase
+      .from('attendance_records')
+      .select('status, attendance_sessions(subject, session_date)')
+      .eq('student_id', row!.id);
+    return (data as any) || [];
+  });
+  const name = row?.full_name || '';
+  const recs = q.data || [];
 
-  if (loading || !now) return <Spinner label={t('common.loading')} />;
+  if (me === undefined || !now || (row && q.data === undefined)) return <Spinner label={t('common.loading')} />;
 
   const c: Record<Status, number> = { present: 0, late: 0, absent: 0, excused: 0 };
   recs.forEach((r) => (c[r.status] += 1));
+  const pct = recs.length ? Math.round(((c.present + c.late) / recs.length) * 100) : 0;
   const today = todayLocal();
   const todays = recs.filter((r) => r.attendance_sessions?.session_date === today);
   const statusOf = (subject: string) => todays.find((r) => r.attendance_sessions?.subject === subject)?.status;

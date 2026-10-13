@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useState } from 'react';
+import { useMe } from './MeProvider';
 import { randomPassword } from '@/lib/utils';
 import { useLang } from './LanguageProvider';
 import PasswordInput from './PasswordInput';
@@ -9,11 +9,10 @@ import Avatar from './Avatar';
 import Icon from './Icon';
 import { Alert, Spinner } from './ui';
 
-type Stu = { id: string; full_name: string; username: string; user_id: string | null };
 
 export default function StudentPasswords() {
   const { t } = useLang();
-  const [list, setList] = useState<Stu[] | null>(null);
+  const { students: list, reloadStudents } = useMe();
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<string | null>(null);
   const [pw, setPw] = useState('');
@@ -21,15 +20,7 @@ export default function StudentPasswords() {
   const [msg, setMsg] = useState<{ id: string; kind: 'error' | 'success'; text: string; copy?: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
-  async function load() {
-    const { data } = await supabase.from('students').select('id, full_name, username, user_id').order('full_name');
-    setList((data as Stu[]) || []);
-  }
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function save(s: Stu) {
+  async function save(s: { id: string; username: string }) {
     if (pw.length < 8) return setMsg({ id: s.id, kind: 'error', text: t('pw.tooShort') });
     setBusy(true);
     setMsg(null);
@@ -46,7 +37,7 @@ export default function StudentPasswords() {
         const line = t('pw.result', { login: s.username, pw });
         setMsg({ id: s.id, kind: 'success', text: (j.created ? t('pw.created') + ' ' : t('pw.changed') + '. ') + line, copy: line });
         setPw('');
-        load();
+        reloadStudents();
       }
     } catch {
       setMsg({ id: s.id, kind: 'error', text: t('common.error') });
