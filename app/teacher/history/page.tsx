@@ -6,11 +6,12 @@ import { supabase } from '@/lib/supabase';
 import { Status, STATUS_ORDER, STATUS_SOFT, fmtDate } from '@/lib/utils';
 import { subjectLabel } from '@/lib/schedule';
 import { useQuery } from '@/lib/swr';
+import { dropEmpty, fetchRecords } from '@/lib/sessions';
 import { useLang } from '@/components/LanguageProvider';
 import Icon from '@/components/Icon';
 import { Alert, Empty, PageTitle, Spinner } from '@/components/ui';
 
-type Sess = { id: string; subject: string; session_date: string; status: string };
+type Sess = { id: string; subject: string; session_date: string; status: string; created_at: string };
 type Rec = { session_id: string; status: Status; students: { full_name: string } | null };
 
 export default function HistoryPage() {
@@ -21,18 +22,15 @@ export default function HistoryPage() {
   const { data, error } = useQuery<{ sessions: Sess[]; records: Rec[] }>('t:history', async () => {
     const { data: s, error: e } = await supabase
       .from('attendance_sessions')
-      .select('id, subject, session_date, status')
+      .select('id, subject, session_date, status, created_at')
       .order('session_date', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(40);
     if (e) throw e;
-    const ids = (s || []).map((x: any) => x.id);
-    let records: Rec[] = [];
-    if (ids.length) {
-      const { data: r } = await supabase.from('attendance_records').select('session_id, status, students(full_name)').in('session_id', ids);
-      records = ((r as any) || []) as Rec[];
-    }
-    return { sessions: ((s as Sess[]) || []) as Sess[], records };
+    const all = ((s as Sess[]) || []) as Sess[];
+    const records = await fetchRecords<Rec>(all.map((x) => x.id), 'session_id, status, students(full_name)');
+    // only lessons where somebody was actually marked
+    return { sessions: dropEmpty(all, records), records };
   });
   const sessions = data?.sessions || [];
   const records = data?.records || [];

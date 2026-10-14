@@ -6,12 +6,13 @@ import { supabase } from '@/lib/supabase';
 import { Status, STATUS_ORDER, STATUS_DOT, todayLocal } from '@/lib/utils';
 import { lessonsFor, weekType, subjectLabel, dayName, pairState, pairTime } from '@/lib/schedule';
 import { useQuery } from '@/lib/swr';
+import { dropEmpty, fetchRecords, pickLast } from '@/lib/sessions';
 import { useMe } from '@/components/MeProvider';
 import { useLang } from '@/components/LanguageProvider';
 import { IconTile } from '@/components/ui';
 import { IconName } from '@/components/Icon';
 
-type Sess = { id: string; subject: string; status: string; created_at: string };
+type Sess = { id: string; subject: string; session_date: string; status: string; created_at: string };
 type Today = { sessions: Sess[]; counts: Record<Status, number> };
 
 export default function TeacherDashboard() {
@@ -25,18 +26,21 @@ export default function TeacherDashboard() {
   }, []);
 
   const q = useQuery<Today>('t:today', async () => {
+    const d = new Date();
+    const pairOf = (subject: string) => lessonsFor(d.getDay(), weekType(d)).find((l) => l.subject === subject)?.pair ?? 0;
     const { data: s } = await supabase
       .from('attendance_sessions')
-      .select('id, subject, status, created_at')
+      .select('id, subject, session_date, status, created_at')
       .eq('session_date', todayLocal())
       .order('created_at', { ascending: false });
-    const sessions = (s as Sess[]) || [];
+    const all = (s as Sess[]) || [];
+    const recs = await fetchRecords<{ session_id: string; status: Status }>(all.map((x) => x.id), 'session_id, status');
+    const sessions = dropEmpty(all, recs);
+    // "Last lesson" = the latest lesson of today's timetable that has attendance
+    const last = pickLast(sessions, pairOf);
     const counts: Record<Status, number> = { present: 0, late: 0, absent: 0, excused: 0 };
-    if (sessions[0]) {
-      const { data: r } = await supabase.from('attendance_records').select('status').eq('session_id', sessions[0].id);
-      (r || []).forEach((x: any) => (counts[x.status as Status] += 1));
-    }
-    return { sessions, counts };
+    if (last) recs.filter((r) => r.session_id === last.id).forEach((r) => (counts[r.status] += 1));
+    return { sessions: last ? [last, ...sessions.filter((x) => x.id !== last.id)] : sessions, counts };
   });
 
   const name = (me?.row as any)?.full_name || '';

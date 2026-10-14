@@ -10,7 +10,7 @@ type Cell = { pair: 1 | 2 | 3; opts: Opt[] };
 const ISAKOV = 'Isakov Shaxzod';
 const ABDULLAYEVA = 'Abdullayeva Komila';
 const YAKUBOV = 'Yakubov Vali';
-const KARJ = 'Karjaubayev Y. / Isakov Sh.';
+const KARJ = ISAKOV;
 
 const one = (pair: 1 | 2 | 3, subject: string, teacher: string | null): Cell => ({
   pair,
@@ -33,7 +33,7 @@ export const WEEK: Record<number, Cell[]> = {
       ],
     },
     one(2, 'Informatika va axborot texnologiyalari', KARJ),
-    one(3, 'Rus tili va adabiyoti', 'Kurbanbayev M. / Turebayeva J.'),
+    one(3, 'Rus tili va adabiyoti', 'Kurbanbayev Mardon'),
   ],
   3: [
     one(1, 'Kompyuter tarmoqlari asoslari', ISAKOV),

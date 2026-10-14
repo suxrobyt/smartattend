@@ -157,7 +157,6 @@ export default function ReportsPage() {
               );
             })}
           </div>
-          <p className="text-xs text-muted">{t('rep.legend')}</p>
         </>
       )}
     </div>

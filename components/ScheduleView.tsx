@@ -82,11 +82,7 @@ export default function ScheduleView() {
                   <Icon name="pin" className="h-3 w-3" />
                   {ROOM}
                 </span>
-                {l.alternates && <span className="chip !border-warn/30 !bg-warn/10 !text-warn">{t('sch.alternates')}</span>}
               </div>
-              {l.other && (
-                <p className="mt-2 text-xs text-muted">{t('sch.otherWeek', { s: subjectLabel(l.other.subject, lang) })}</p>
-              )}
             </div>
           </div>
         ))}

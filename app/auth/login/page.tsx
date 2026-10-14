@@ -78,18 +78,18 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <p className="mt-4 text-center text-xs leading-relaxed text-muted">
-        {t('login.help')}{' '}
+      <div className="mt-4 text-center">
+        <p className="text-xs leading-relaxed text-muted">{t('login.help')}</p>
         <a
           href="https://t.me/Isakovshaxzodbek"
           target="_blank"
           rel="noopener noreferrer"
-          className="font-semibold text-brand underline-offset-2 hover:underline"
+          className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
         >
-          <Icon name="send" className="mr-1 inline h-3.5 w-3.5 -translate-y-px" />
+          <Icon name="send" className="h-4 w-4" />
           {t('login.contact')}
         </a>
-      </p>
+      </div>
 
       <div className="mt-6 flex flex-wrap justify-center gap-2">
         {LANGS.map((l) => (
