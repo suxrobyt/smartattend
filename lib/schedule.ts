@@ -11,6 +11,7 @@ const ISAKOV = 'Isakov Shaxzod';
 const ABDULLAYEVA = 'Abdullayeva Komila';
 const YAKUBOV = 'Yakubov Vali';
 const KARJ = ISAKOV;
+const SULTONOV = 'Sultonov Farrux';
 
 const one = (pair: 1 | 2 | 3, subject: string, teacher: string | null): Cell => ({
   pair,
@@ -37,7 +38,7 @@ export const WEEK: Record<number, Cell[]> = {
   ],
   3: [
     one(1, 'Kompyuter tarmoqlari asoslari', ISAKOV),
-    one(2, 'Tarix', null),
+    one(2, 'Tarix', SULTONOV),
     one(3, 'Ingliz tili', ABDULLAYEVA),
   ],
   4: [
@@ -48,7 +49,7 @@ export const WEEK: Record<number, Cell[]> = {
   5: [
     one(1, 'Informatika va axborot texnologiyalari', KARJ),
     one(2, 'Ona tili va adabiyoti', 'Uskinova Shaxlo'),
-    one(3, 'Tarix', null),
+    one(3, 'Tarix', SULTONOV),
   ],
   6: [
     one(1, 'Tarbiya', 'Tazabayeva Muqaddas'),
