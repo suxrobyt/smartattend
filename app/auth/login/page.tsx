@@ -48,9 +48,9 @@ export default function LoginPage() {
   return (
     <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col justify-center px-5 py-10">
       <div className="mb-8 text-center">
-        <span className="mx-auto mb-4 block w-16"><Logo size={64} /></span>
-        <h1 className="text-3xl font-bold tracking-tight">SmartAttend</h1>
-        <p className="mt-1.5 text-sm text-muted">{t('login.subtitle')}</p>
+        <Logo full size={176} />
+        <h1 className="sr-only">SmartAttend</h1>
+        <p className="mt-4 text-sm text-muted">{t('login.subtitle')}</p>
       </div>
 
       <form onSubmit={submit} className="card space-y-4 p-5">

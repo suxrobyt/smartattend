@@ -8,7 +8,10 @@ export const metadata: Metadata = {
   title: 'SmartAttend',
   description: 'SmartAttend — 9K 9-26',
   manifest: '/manifest.json',
-  icons: { icon: '/icon.svg' },
+  icons: {
+    icon: [{ url: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
+    apple: '/icon-512.png',
+  },
 };
 
 export const viewport: Viewport = {
