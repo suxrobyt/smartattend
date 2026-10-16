@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useMe } from './MeProvider';
+import { useMe } from '@/components/MeProvider';
 import { useLang } from './LanguageProvider';
+import { isHead } from '@/lib/teacher';
 import { askLogout } from './useLogout';
 import Icon, { IconName } from './Icon';
 import Avatar from './Avatar';
@@ -12,11 +13,15 @@ export default function SettingsMenu({ role }: { role: 'teacher' | 'student' }) 
   const { t, lang } = useLang();
   const { me: meCtx } = useMe();
   const me = meCtx?.row as { full_name: string; username: string } | undefined;
+  // Only the head teacher manages students' passwords; subject teachers change only their own
+  const head = role === 'teacher' && isHead(meCtx?.row);
 
   const base = `/${role}/settings`;
   const rows: { href: string; icon: IconName; title: string; desc: string }[] = [
-    role === 'teacher'
+    head
       ? { href: base + '/passwords', icon: 'key', title: t('set.passwords'), desc: t('set.passwordsDesc') }
+      : role === 'teacher'
+      ? { href: base + '/passwords', icon: 'key', title: t('set.password'), desc: t('set.passwordDesc') }
       : { href: base + '/password', icon: 'key', title: t('set.password'), desc: t('set.passwordDesc') },
     { href: base + '/language', icon: 'globe', title: t('set.language'), desc: t('set.languageDesc') },
   ];

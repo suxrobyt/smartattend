@@ -107,6 +107,7 @@ const D: Record<string, Entry> = {
   'att.edit': ["Ko'rish / tahrirlash", 'View / edit', 'Открыть / изменить', 'Görüntüle / düzenle'],
   'att.finished': ['Yakunlangan', 'Finished', 'Завершено', 'Tamamlandı'],
   'att.active': ['Davom etmoqda', 'In progress', 'Идёт', 'Devam ediyor'],
+  'att.noSubjects': ["Sizga hali fan biriktirilmagan", 'No subjects are assigned to you yet', 'Вам ещё не назначены предметы', 'Size henüz ders atanmadı'],
   'att.other': ['Boshqa fan', 'Other subject', 'Другой предмет', 'Diğer ders'],
   'att.pickSubject': ['Fanni tanlang', 'Choose a subject', 'Выберите предмет', 'Ders seçin'],
   'att.lessons': ['Darslar', 'Lessons', 'Занятия', 'Dersler'],

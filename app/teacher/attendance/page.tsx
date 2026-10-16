@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Status, STATUS_ORDER, STATUS_SOFT, STATUS_SOLID, todayLocal, nowTime, fmtDate } from '@/lib/utils';
 import { ALL_SUBJECTS, lessonsFor, weekType, subjectLabel, pairTime } from '@/lib/schedule';
 import { useQuery } from '@/lib/swr';
+import { mySubjects } from '@/lib/teacher';
 import { dropEmpty, fetchRecords, SessRow } from '@/lib/sessions';
 import { useMe } from '@/components/MeProvider';
 import { useLang } from '@/components/LanguageProvider';
@@ -24,7 +25,7 @@ export default function AttendancePage() {
   const [draft, setDraft] = useState<string | null>(null);
   const [session, setSession] = useState<Sess | null>(null);
   const [marks, setMarks] = useState<Record<string, Status>>({});
-  const [manual, setManual] = useState(ALL_SUBJECTS[0]);
+  const [manual, setManual] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -33,6 +34,10 @@ export default function AttendancePage() {
 
   const row = me?.row as { id: string; group_id: string } | undefined;
   const teacher: Teacher | null = row ? { id: row.id, group_id: row.group_id } : null;
+  // A subject teacher marks attendance only for his/her own subjects (null = no limit, old setup)
+  const mine = mySubjects(row);
+  const subjects = mine ?? ALL_SUBJECTS;
+  const manualSel = subjects.includes(manual) ? manual : subjects[0] ?? '';
   const students = (allStudents || []).filter((s) => !teacher || s.group_id === teacher.group_id);
 
   const q = useQuery<Sess[]>(teacher ? 'att:today:' + teacher.id : null, async () => {
@@ -309,6 +314,15 @@ export default function AttendancePage() {
 
   // ---------- lesson list ----------
   const stateOf = (subject: string) => today.find((x) => x.subject === subject);
+  const myLessons = lessons.filter((l) => subjects.includes(l.subject));
+  if (subjects.length === 0) {
+    return (
+      <div className="space-y-5">
+        <PageTitle title={t('att.title')} />
+        <Alert kind="info">{t('att.noSubjects')}</Alert>
+      </div>
+    );
+  }
   return (
     <div className="space-y-5">
       <PageTitle title={t('att.title')} />
@@ -317,11 +331,11 @@ export default function AttendancePage() {
 
       <section>
         <h2 className="mb-3 text-lg font-bold">{t('att.lessonsToday')}</h2>
-        {lessons.length === 0 ? (
+        {myLessons.length === 0 ? (
           <p className="text-sm text-muted">{t('att.noLessons')}</p>
         ) : (
           <div className="space-y-2.5">
-            {lessons.map((l) => {
+            {myLessons.map((l) => {
               const s = stateOf(l.subject);
               return (
                 <div key={l.pair} className="card flex items-center gap-3 p-3.5">
@@ -345,15 +359,15 @@ export default function AttendancePage() {
 
       <section className="card space-y-3 p-4">
         <h2 className="text-[15px] font-bold">{t('att.other')}</h2>
-        <select className="field" value={manual} onChange={(e) => setManual(e.target.value)} aria-label={t('att.pickSubject')}>
-          {ALL_SUBJECTS.map((s) => (
+        <select className="field" value={manualSel} onChange={(e) => setManual(e.target.value)} aria-label={t('att.pickSubject')}>
+          {subjects.map((s) => (
             <option key={s} value={s}>
               {subjectLabel(s, lang)}
             </option>
           ))}
         </select>
-        <button type="button" className="btn-soft w-full" disabled={busy} onClick={() => start(manual)}>
-          {today.find((x) => x.subject === manual)?.status === 'closed' ? t('att.reopen') : t('att.start')}
+        <button type="button" className="btn-soft w-full" disabled={busy} onClick={() => start(manualSel)}>
+          {today.find((x) => x.subject === manualSel)?.status === 'closed' ? t('att.reopen') : t('att.start')}
         </button>
       </section>
     </div>

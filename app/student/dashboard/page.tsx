@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@/lib/swr';
 import { useMe } from '@/components/MeProvider';
-import { Status, STATUS_ORDER, STATUS_SOFT, STATUS_DOT, todayLocal, firstName } from '@/lib/utils';
+import { Status, STATUS_ORDER, STATUS_SOFT, STATUS_DOT, todayLocal, shortName } from '@/lib/utils';
 import { lessonsFor, weekType, subjectLabel, dayName, pairState, pairTime } from '@/lib/schedule';
 import { useLang } from '@/components/LanguageProvider';
 import Icon from '@/components/Icon';
@@ -51,7 +51,7 @@ export default function StudentDashboard() {
         <p className="text-sm text-muted">
           {t('dash.hello')} · {dayName(now.getDay(), lang)}
         </p>
-        <h1 className="text-[26px] font-bold leading-tight tracking-tight">{firstName(name) || '…'}</h1>
+        <h1 className="text-[26px] font-bold leading-tight tracking-tight">{shortName(name) || '…'}</h1>
       </div>
 
       <section className="card relative overflow-hidden p-5">

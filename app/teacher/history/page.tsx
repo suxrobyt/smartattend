@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase';
 import { Status, STATUS_ORDER, STATUS_SOFT, fmtDate } from '@/lib/utils';
 import { subjectLabel } from '@/lib/schedule';
 import { useQuery } from '@/lib/swr';
+import { mySubjects } from '@/lib/teacher';
+import { useMe } from '@/components/MeProvider';
 import { dropEmpty, fetchRecords } from '@/lib/sessions';
 import { useLang } from '@/components/LanguageProvider';
 import Icon from '@/components/Icon';
@@ -18,14 +20,20 @@ export default function HistoryPage() {
   const { t, lang } = useLang();
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
+  const { me } = useMe();
+  const row = me?.row as { id: string } | undefined;
+  const mine = mySubjects(row); // a subject teacher sees only his/her own subjects
 
-  const { data, error } = useQuery<{ sessions: Sess[]; records: Rec[] }>('t:history', async () => {
-    const { data: s, error: e } = await supabase
+  const { data, error } = useQuery<{ sessions: Sess[]; records: Rec[] }>(row ? 't:history:' + row.id : null, async () => {
+    if (mine && mine.length === 0) return { sessions: [], records: [] };
+    let sq = supabase
       .from('attendance_sessions')
       .select('id, subject, session_date, status, created_at')
       .order('session_date', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(40);
+    if (mine) sq = sq.in('subject', mine);
+    const { data: s, error: e } = await sq;
     if (e) throw e;
     const all = ((s as Sess[]) || []) as Sess[];
     const records = await fetchRecords<Rec>(all.map((x) => x.id), 'session_id, status, students(full_name)');
@@ -37,7 +45,7 @@ export default function HistoryPage() {
 
   const countFor = (sid: string, st: Status) => records.filter((r) => r.session_id === sid && r.status === st).length;
 
-  if (!data && !error) return <Spinner label={t('common.loading')} />;
+  if (me === undefined || (row && !data && !error)) return <Spinner label={t('common.loading')} />;
 
   return (
     <div className="space-y-4">

@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { Status, STATUS_ORDER, STATUS_DOT, todayLocal } from '@/lib/utils';
 import { lessonsFor, weekType, subjectLabel, dayName, pairState, pairTime } from '@/lib/schedule';
 import { useQuery } from '@/lib/swr';
+import { mySubjects } from '@/lib/teacher';
 import { dropEmpty, fetchRecords, pickLast } from '@/lib/sessions';
 import { useMe } from '@/components/MeProvider';
 import { useLang } from '@/components/LanguageProvider';
@@ -25,14 +26,20 @@ export default function TeacherDashboard() {
     return () => clearInterval(id);
   }, []);
 
-  const q = useQuery<Today>('t:today', async () => {
+  const row = me?.row as { id: string } | undefined;
+  const mine = mySubjects(row); // null = all subjects (old setup)
+
+  const q = useQuery<Today>(row ? 't:today:' + row.id : null, async () => {
     const d = new Date();
+    if (mine && mine.length === 0) return { sessions: [], counts: { present: 0, late: 0, absent: 0, excused: 0 } };
     const pairOf = (subject: string) => lessonsFor(d.getDay(), weekType(d)).find((l) => l.subject === subject)?.pair ?? 0;
-    const { data: s } = await supabase
+    let sq = supabase
       .from('attendance_sessions')
       .select('id, subject, session_date, status, created_at')
       .eq('session_date', todayLocal())
       .order('created_at', { ascending: false });
+    if (mine) sq = sq.in('subject', mine);
+    const { data: s } = await sq;
     const all = (s as Sess[]) || [];
     const recs = await fetchRecords<{ session_id: string; status: Status }>(all.map((x) => x.id), 'session_id, status');
     const sessions = dropEmpty(all, recs);
@@ -50,7 +57,8 @@ export default function TeacherDashboard() {
   const last = sessions[0];
   const attended = counts.present + counts.late;
   const rate = total ? Math.round((attended / total) * 100) : 0;
-  const lessons = now ? lessonsFor(now.getDay(), weekType(now)) : [];
+  // A subject teacher sees only his/her own lessons here (the full timetable is on the Schedule tab)
+  const lessons = (now ? lessonsFor(now.getDay(), weekType(now)) : []).filter((l) => !mine || mine.includes(l.subject));
   // Chip is decided by the clock first, then by what was saved
   const chipFor = (pair: number, subject: string) => {
     const sess = sessions.find((x) => x.subject === subject);
@@ -76,6 +84,7 @@ export default function TeacherDashboard() {
           {now ? ' · ' + dayName(now.getDay(), lang) : ''}
         </p>
         <h1 className="min-h-[2rem] text-[26px] font-bold leading-tight tracking-tight">{name}</h1>
+        {mine && mine.length > 0 && <p className="mt-1 text-sm text-muted">{mine.map((s) => subjectLabel(s, lang)).join(' · ')}</p>}
       </div>
 
       <section className="card relative overflow-hidden p-5">
@@ -104,7 +113,7 @@ export default function TeacherDashboard() {
           </>
         ) : (
           <>
-            <p className="mt-2 text-[15px] font-medium">{q.loading ? t('common.loading') : t('dash.noneYet')}</p>
+            <p className="mt-2 text-[15px] font-medium">{me === undefined || q.loading ? t('common.loading') : t('dash.noneYet')}</p>
             <p className="mt-1 text-sm text-muted">
               {t('dash.total')}: {total}
             </p>

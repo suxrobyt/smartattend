@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Status, STATUS_ORDER, toCsv, downloadCsv, fmtDate } from '@/lib/utils';
 import { subjectLabel } from '@/lib/schedule';
+import { mySubjects } from '@/lib/teacher';
+import { useMe } from '@/components/MeProvider';
 import { useLang } from '@/components/LanguageProvider';
 import Icon from '@/components/Icon';
 import { Alert, PageTitle, Spinner } from '@/components/ui';
@@ -20,6 +22,8 @@ function daysAgo(n: number) {
 
 export default function ReportsPage() {
   const { t, lang } = useLang();
+  const { me } = useMe();
+  const mine = mySubjects(me?.row); // a subject teacher gets reports for his/her own subjects only
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [students, setStudents] = useState<StudentRow[]>([]);
@@ -29,13 +33,14 @@ export default function ReportsPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (me === undefined) return; // wait for the profile
     const f = daysAgo(30);
     const tt = daysAgo(0);
     setFrom(f);
     setTo(tt);
     load(f, tt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [me === undefined]);
 
   async function load(f: string, tt: string) {
     setLoading(true);
@@ -43,13 +48,21 @@ export default function ReportsPage() {
     try {
       const { data: st } = await supabase.from('students').select('id, full_name, username').order('full_name');
       setStudents((st as StudentRow[]) || []);
-      const { data: ss, error: se } = await supabase
+      if (mine && mine.length === 0) {
+        setSessions([]);
+        setRecords([]);
+        setLoading(false);
+        return;
+      }
+      let sq = supabase
         .from('attendance_sessions')
         .select('id, subject, session_date')
         .gte('session_date', f)
         .lte('session_date', tt)
         .order('session_date', { ascending: true })
         .limit(500);
+      if (mine) sq = sq.in('subject', mine);
+      const { data: ss, error: se } = await sq;
       if (se) throw se;
       setSessions((ss as SessionRow[]) || []);
       const ids = (ss || []).map((s: any) => s.id);

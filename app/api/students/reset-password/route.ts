@@ -43,12 +43,16 @@ export async function POST(request: NextRequest) {
     // Caller must be a teacher of this student's group
     const { data: teacher } = await supabase
       .from('teachers')
-      .select('id')
+      .select('*')
       .eq('user_id', user.id)
       .eq('group_id', student.group_id)
       .maybeSingle();
     if (!teacher) {
       return NextResponse.json({ error: 'Ruxsat yo\'q' }, { status: 403 });
+    }
+    // Only the head teacher manages students' passwords (is_head missing = old database, allowed)
+    if ((teacher as any).is_head === false) {
+      return NextResponse.json({ error: "Faqat bosh o'qituvchi o'quvchilar parolini o'zgartira oladi" }, { status: 403 });
     }
 
     const admin = getSupabaseAdmin();
