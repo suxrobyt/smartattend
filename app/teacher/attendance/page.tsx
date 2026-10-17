@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Status, STATUS_ORDER, STATUS_SOFT, STATUS_SOLID, todayLocal, nowTime, fmtDate } from '@/lib/utils';
-import { ALL_SUBJECTS, lessonsFor, weekType, subjectLabel, pairTime } from '@/lib/schedule';
+import { ALL_SUBJECTS, lessonsFor, weekType, subjectLabel, pairTime, dayName } from '@/lib/schedule';
 import { useQuery } from '@/lib/swr';
 import { mySubjects } from '@/lib/teacher';
 import { dropEmpty, fetchRecords, SessRow } from '@/lib/sessions';
@@ -20,12 +20,14 @@ export default function AttendancePage() {
   const { t, lang } = useLang();
   const { me, students: allStudents } = useMe();
   const [lessons, setLessons] = useState<ReturnType<typeof lessonsFor>>([]);
+  // this week's timetable, Monday..Saturday (for the "my lessons this week" card)
+  const [week, setWeek] = useState<{ day: number; list: ReturnType<typeof lessonsFor> }[]>([]);
+  const [todayNum, setTodayNum] = useState(0);
   // `draft` = subject on the marking screen. The lesson itself is saved
   // only when the first student is marked, so tapping "Start" leaves no empty lessons behind.
   const [draft, setDraft] = useState<string | null>(null);
   const [session, setSession] = useState<Sess | null>(null);
   const [marks, setMarks] = useState<Record<string, Status>>({});
-  const [manual, setManual] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -37,7 +39,6 @@ export default function AttendancePage() {
   // A subject teacher marks attendance only for his/her own subjects (null = no limit, old setup)
   const mine = mySubjects(row);
   const subjects = mine ?? ALL_SUBJECTS;
-  const manualSel = subjects.includes(manual) ? manual : subjects[0] ?? '';
   const students = (allStudents || []).filter((s) => !teacher || s.group_id === teacher.group_id);
 
   const q = useQuery<Sess[]>(teacher ? 'att:today:' + teacher.id : null, async () => {
@@ -57,6 +58,8 @@ export default function AttendancePage() {
   useEffect(() => {
     const d = new Date();
     setLessons(lessonsFor(d.getDay(), weekType(d)));
+    setWeek([1, 2, 3, 4, 5, 6].map((day) => ({ day, list: lessonsFor(day, weekType(d)) })));
+    setTodayNum(d.getDay());
   }, []);
 
   // Opened from History with ?open=<session id>
@@ -314,7 +317,6 @@ export default function AttendancePage() {
 
   // ---------- lesson list ----------
   const stateOf = (subject: string) => today.find((x) => x.subject === subject);
-  const myLessons = lessons.filter((l) => subjects.includes(l.subject));
   if (subjects.length === 0) {
     return (
       <div className="space-y-5">
@@ -331,25 +333,30 @@ export default function AttendancePage() {
 
       <section>
         <h2 className="mb-3 text-lg font-bold">{t('att.lessonsToday')}</h2>
-        {myLessons.length === 0 ? (
+        {lessons.length === 0 ? (
           <p className="text-sm text-muted">{t('att.noLessons')}</p>
         ) : (
           <div className="space-y-2.5">
-            {myLessons.map((l) => {
-              const s = stateOf(l.subject);
+            {lessons.map((l) => {
+              const own = subjects.includes(l.subject);
+              const s = own ? stateOf(l.subject) : undefined;
               return (
-                <div key={l.pair} className="card flex items-center gap-3 p-3.5">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/15 font-bold text-brand">{l.pair}</span>
+                <div key={l.pair} className={'card flex items-center gap-3 p-3.5 ' + (own ? '' : 'opacity-70')}>
+                  <span className={'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold ' + (own ? 'bg-brand/15 text-brand' : 'bg-surface-2 text-muted')}>{l.pair}</span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[15px] font-semibold">{subjectLabel(l.subject, lang)}</p>
                     <p className="text-xs text-muted">
                       {t('att.pair', { n: l.pair })} · {pairTime(l.pair)}
-                      {s && ` · ${s.status === 'active' ? t('att.active') : t('att.finished')}`}
+                      {own ? (s ? ` · ${s.status === 'active' ? t('att.active') : t('att.finished')}` : '') : l.teacher ? ` · ${l.teacher}` : ''}
                     </p>
                   </div>
-                  <button type="button" disabled={busy} onClick={() => start(l.subject)} className={s ? 'btn-soft !px-3 !py-2 text-sm' : 'btn-primary !px-3.5 !py-2 text-sm'}>
-                    {!s ? t('att.start') : s.status === 'active' ? t('att.continue') : t('att.reopen')}
-                  </button>
+                  {own ? (
+                    <button type="button" disabled={busy} onClick={() => start(l.subject)} className={s ? 'btn-soft !px-3 !py-2 text-sm' : 'btn-primary !px-3.5 !py-2 text-sm'}>
+                      {!s ? t('att.start') : s.status === 'active' ? t('att.continue') : t('att.reopen')}
+                    </button>
+                  ) : (
+                    <span className="chip shrink-0">{t('att.otherTeacher')}</span>
+                  )}
                 </div>
               );
             })}
@@ -357,19 +364,30 @@ export default function AttendancePage() {
         )}
       </section>
 
-      <section className="card space-y-3 p-4">
-        <h2 className="text-[15px] font-bold">{t('att.other')}</h2>
-        <select className="field" value={manualSel} onChange={(e) => setManual(e.target.value)} aria-label={t('att.pickSubject')}>
-          {subjects.map((s) => (
-            <option key={s} value={s}>
-              {subjectLabel(s, lang)}
-            </option>
-          ))}
-        </select>
-        <button type="button" className="btn-soft w-full" disabled={busy} onClick={() => start(manualSel)}>
-          {today.find((x) => x.subject === manualSel)?.status === 'closed' ? t('att.reopen') : t('att.start')}
-        </button>
-      </section>
+      {mine && (
+        <section>
+          <h2 className="mb-3 text-lg font-bold">{t('att.myWeek')}</h2>
+          <div className="card divide-y divide-line overflow-hidden">
+            {week
+              .map((d) => ({ ...d, list: d.list.filter((l) => subjects.includes(l.subject)) }))
+              .filter((d) => d.list.length > 0)
+              .map((d) => (
+                <div key={d.day} className="px-4 py-3">
+                  <p className={'text-sm font-bold ' + (d.day === todayNum ? 'text-brand' : '')}>{dayName(d.day, lang)}</p>
+                  <div className="mt-1.5 space-y-1">
+                    {d.list.map((l) => (
+                      <p key={l.pair} className="flex items-baseline gap-2 text-[13px] text-muted">
+                        <span className="w-14 shrink-0 text-xs">{t('att.pair', { n: l.pair })}</span>
+                        <span className="min-w-0 flex-1 text-ink">{subjectLabel(l.subject, lang)}</span>
+                        <span className="shrink-0 text-xs">{pairTime(l.pair)}</span>
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
