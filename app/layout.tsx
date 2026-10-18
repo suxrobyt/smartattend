@@ -6,7 +6,7 @@ import { isLang } from '@/lib/i18n';
 
 export const metadata: Metadata = {
   title: 'SmartAttend',
-  description: 'SmartAttend — 9K 9-26',
+  description: 'SmartAttend — davomat tizimi',
   manifest: '/manifest.json',
   icons: {
     icon: [{ url: '/icon-192.png', sizes: '192x192', type: 'image/png' }],

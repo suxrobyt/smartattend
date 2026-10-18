@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { Status, STATUS_ORDER, STATUS_DOT, todayLocal } from '@/lib/utils';
 import { lessonsFor, weekType, subjectLabel, dayName, pairState, pairTime } from '@/lib/schedule';
 import { useQuery } from '@/lib/swr';
-import { mySubjects } from '@/lib/teacher';
+import { mySubjects, isCurator } from '@/lib/teacher';
 import { dropEmpty, fetchRecords, pickLast } from '@/lib/sessions';
 import { useMe } from '@/components/MeProvider';
 import { useLang } from '@/components/LanguageProvider';
@@ -18,7 +18,7 @@ type Today = { sessions: Sess[]; counts: Record<Status, number> };
 
 export default function TeacherDashboard() {
   const { t, lang } = useLang();
-  const { me, students } = useMe();
+  const { me, students, groupCode } = useMe();
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
     setNow(new Date());
@@ -29,10 +29,10 @@ export default function TeacherDashboard() {
   const row = me?.row as { id: string } | undefined;
   const mine = mySubjects(row); // null = all subjects (old setup)
 
-  const q = useQuery<Today>(row ? 't:today:' + row.id : null, async () => {
+  const q = useQuery<Today>(row && groupCode ? 't:today:' + row.id : null, async () => {
     const d = new Date();
     if (mine && mine.length === 0) return { sessions: [], counts: { present: 0, late: 0, absent: 0, excused: 0 } };
-    const pairOf = (subject: string) => lessonsFor(d.getDay(), weekType(d)).find((l) => l.subject === subject)?.pair ?? 0;
+    const pairOf = (subject: string) => lessonsFor(d.getDay(), weekType(d), groupCode!).find((l) => l.subject === subject)?.pair ?? 0;
     let sq = supabase
       .from('attendance_sessions')
       .select('id, subject, session_date, status, created_at')
@@ -58,7 +58,7 @@ export default function TeacherDashboard() {
   const attended = counts.present + counts.late;
   const rate = total ? Math.round((attended / total) * 100) : 0;
   // A subject teacher sees only his/her own lessons here (the full timetable is on the Schedule tab)
-  const lessons = (now ? lessonsFor(now.getDay(), weekType(now)) : []).filter((l) => !mine || mine.includes(l.subject));
+  const lessons = (now && groupCode ? lessonsFor(now.getDay(), weekType(now), groupCode) : []).filter((l) => !mine || mine.includes(l.subject));
   // Chip is decided by the clock first, then by what was saved
   const chipFor = (pair: number, subject: string) => {
     const sess = sessions.find((x) => x.subject === subject);
@@ -84,6 +84,7 @@ export default function TeacherDashboard() {
           {now ? ' · ' + dayName(now.getDay(), lang) : ''}
         </p>
         <h1 className="min-h-[2rem] text-[26px] font-bold leading-tight tracking-tight">{name}</h1>
+        {isCurator(row) && <p className="mt-1 text-sm text-muted">{t('dash.curator')}</p>}
         {mine && mine.length > 0 && <p className="mt-1 text-sm text-muted">{mine.map((s) => subjectLabel(s, lang)).join(' · ')}</p>}
       </div>
 
@@ -134,7 +135,7 @@ export default function TeacherDashboard() {
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/15 font-bold text-brand">{l.pair}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[15px] font-semibold">{subjectLabel(l.subject, lang)}</span>
-                    <span className="block truncate text-xs text-muted">{pairTime(l.pair)} · {l.teacher || t('sch.vacant')}</span>
+                    <span className="block truncate text-xs text-muted">{pairTime(l.pair)} · {l.teacher || l.room || t('sch.vacant')}</span>
                   </span>
                   <span className={'chip shrink-0 ' + chip.cls}>{chip.text}</span>
                 </Link>

@@ -1,7 +1,7 @@
 {
   "name": "smartattend",
   "version": "1.0.0",
-  "description": "Smart online attendance management for group 9-26",
+  "description": "Smart online attendance management for groups 9-26 and 7-26",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

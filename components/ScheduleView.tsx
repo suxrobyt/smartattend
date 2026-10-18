@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useLang } from './LanguageProvider';
-import { GROUP_LABEL, ROOM, lessonsFor, weekType, mondayOf, addDays, subjectLabel, dayName, dayShort, pairTime, pairState } from '@/lib/schedule';
+import { groupLabel, roomOf, lessonsFor, weekType, mondayOf, addDays, subjectLabel, dayName, dayShort, pairTime, pairState } from '@/lib/schedule';
+import { useMe } from '@/components/MeProvider';
 import { PageTitle, Segmented } from './ui';
 import Icon from './Icon';
 
 export default function ScheduleView() {
   const { t, lang } = useLang();
+  const { groupCode } = useMe();
   const [now, setNow] = useState<Date | null>(null);
   const [off, setOff] = useState<'0' | '1'>('0');
   const [day, setDay] = useState(1);
@@ -20,19 +22,20 @@ export default function ScheduleView() {
     return () => clearInterval(id);
   }, []);
 
-  if (!now) return null;
+  if (!now || !groupCode) return null;
+  const room = roomOf(groupCode);
 
   const base = addDays(mondayOf(now), off === '1' ? 7 : 0);
   const wt = weekType(base);
   const todayDow = now.getDay();
   const isThisWeek = off === '0';
   const dateOf = (d: number) => addDays(base, d - 1);
-  const lessons = lessonsFor(day, wt);
+  const lessons = lessonsFor(day, wt, groupCode);
   const fmt = (d: Date) => `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
 
   return (
     <div className="space-y-4">
-      <PageTitle title={t('sch.title')} subtitle={`${GROUP_LABEL} · ${t('sch.room')}: ${ROOM}`} />
+      <PageTitle title={t('sch.title')} subtitle={`${groupLabel(groupCode)} · ${t('sch.room')}: ${room}`} />
       <Segmented
         value={off}
         onChange={setOff}
@@ -75,12 +78,12 @@ export default function ScheduleView() {
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-lg font-bold text-brand">{l.pair}</span>
             <div className="min-w-0 flex-1">
               <p className="text-[15px] font-semibold leading-snug">{subjectLabel(l.subject, lang)}</p>
-              <p className="mt-1 text-sm text-muted">{l.teacher || t('sch.vacant')}</p>
+              {(l.teacher || !l.room) && <p className="mt-1 text-sm text-muted">{l.teacher || t('sch.vacant')}</p>}
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 <span className="chip !border-brand/30 !bg-brand/10 !text-brand">{pairTime(l.pair)}</span>
                 <span className="chip">
                   <Icon name="pin" className="h-3 w-3" />
-                  {ROOM}
+                  {l.room || room}
                 </span>
               </div>
             </div>

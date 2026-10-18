@@ -16,7 +16,7 @@ type Rec = { status: Status; attendance_sessions: { subject: string; session_dat
 export default function StudentDashboard() {
   const { t, lang } = useLang();
   const [now, setNow] = useState<Date | null>(null);
-  const { me } = useMe();
+  const { me, groupCode } = useMe();
   useEffect(() => {
     setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 30000);
@@ -34,7 +34,7 @@ export default function StudentDashboard() {
   const name = row?.full_name || '';
   const recs = q.data || [];
 
-  if (me === undefined || !now || (row && q.data === undefined)) return <Spinner label={t('common.loading')} />;
+  if (me === undefined || !now || !groupCode || (row && q.data === undefined)) return <Spinner label={t('common.loading')} />;
 
   const c: Record<Status, number> = { present: 0, late: 0, absent: 0, excused: 0 };
   recs.forEach((r) => (c[r.status] += 1));
@@ -42,7 +42,7 @@ export default function StudentDashboard() {
   const today = todayLocal();
   const todays = recs.filter((r) => r.attendance_sessions?.session_date === today);
   const statusOf = (subject: string) => todays.find((r) => r.attendance_sessions?.subject === subject)?.status;
-  const lessons = lessonsFor(now.getDay(), weekType(now));
+  const lessons = lessonsFor(now.getDay(), weekType(now), groupCode);
   const tone = pct >= 85 ? 'text-ok' : pct >= 60 ? 'text-warn' : 'text-bad';
 
   return (
@@ -86,7 +86,7 @@ export default function StudentDashboard() {
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/15 font-bold text-brand">{l.pair}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[15px] font-semibold">{subjectLabel(l.subject, lang)}</span>
-                    <span className="block truncate text-xs text-muted">{pairTime(l.pair)} · {l.teacher || t('sch.vacant')}</span>
+                    <span className="block truncate text-xs text-muted">{pairTime(l.pair)} · {l.teacher || l.room || t('sch.vacant')}</span>
                   </span>
                   {st ? (
                     <span className={'shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ' + STATUS_SOFT[st]}>{t('status.' + st)}</span>

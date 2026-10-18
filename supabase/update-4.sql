@@ -106,7 +106,8 @@ update attendance_sessions s
 set teacher_id = t.id
 from teachers t
 where s.subject = any (t.subjects)
-  and s.teacher_id is distinct from t.id;
+  and s.teacher_id is distinct from t.id
+  and (s.group_id is null or s.group_id = t.group_id);
 
 -- 8) O'quvchi logini o'qituvchi logi bilan to'qnashsa: familiya bosh harfi qo'shiladi
 update students s

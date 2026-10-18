@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Status, STATUS_ORDER, STATUS_SOFT, STATUS_SOLID, todayLocal, nowTime, fmtDate } from '@/lib/utils';
-import { ALL_SUBJECTS, lessonsFor, weekType, subjectLabel, pairTime, dayName } from '@/lib/schedule';
+import { subjectsOf, lessonsFor, weekType, subjectLabel, pairTime, dayName } from '@/lib/schedule';
 import { useQuery } from '@/lib/swr';
 import { mySubjects } from '@/lib/teacher';
 import { dropEmpty, fetchRecords, SessRow } from '@/lib/sessions';
@@ -18,7 +18,7 @@ type Sess = SessRow;
 
 export default function AttendancePage() {
   const { t, lang } = useLang();
-  const { me, students: allStudents } = useMe();
+  const { me, students: allStudents, groupCode } = useMe();
   const [lessons, setLessons] = useState<ReturnType<typeof lessonsFor>>([]);
   // this week's timetable, Monday..Saturday (for the "my lessons this week" card)
   const [week, setWeek] = useState<{ day: number; list: ReturnType<typeof lessonsFor> }[]>([]);
@@ -38,7 +38,7 @@ export default function AttendancePage() {
   const teacher: Teacher | null = row ? { id: row.id, group_id: row.group_id } : null;
   // A subject teacher marks attendance only for his/her own subjects (null = no limit, old setup)
   const mine = mySubjects(row);
-  const subjects = mine ?? ALL_SUBJECTS;
+  const subjects = mine ?? subjectsOf(groupCode);
   const students = (allStudents || []).filter((s) => !teacher || s.group_id === teacher.group_id);
 
   const q = useQuery<Sess[]>(teacher ? 'att:today:' + teacher.id : null, async () => {
@@ -56,11 +56,12 @@ export default function AttendancePage() {
   const reload = q.reload;
 
   useEffect(() => {
+    if (!groupCode) return;
     const d = new Date();
-    setLessons(lessonsFor(d.getDay(), weekType(d)));
-    setWeek([1, 2, 3, 4, 5, 6].map((day) => ({ day, list: lessonsFor(day, weekType(d)) })));
+    setLessons(lessonsFor(d.getDay(), weekType(d), groupCode));
+    setWeek([1, 2, 3, 4, 5, 6].map((day) => ({ day, list: lessonsFor(day, weekType(d), groupCode) })));
     setTodayNum(d.getDay());
-  }, []);
+  }, [groupCode]);
 
   // Opened from History with ?open=<session id>
   useEffect(() => {
@@ -243,7 +244,7 @@ export default function AttendancePage() {
     window.scrollTo({ top: 0 });
   }
 
-  if (me === undefined) return <Spinner label={t('common.loading')} />;
+  if (me === undefined || !groupCode) return <Spinner label={t('common.loading')} />;
   if (!teacher) return <Alert kind="error">{t('att.noTeacher')}</Alert>;
   if (q.data === undefined || allStudents === undefined) return <Spinner label={t('common.loading')} />;
 

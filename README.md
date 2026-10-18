@@ -1,4 +1,4 @@
-# SmartAttend — 9K 9-26
+# SmartAttend — 9K 9-26 va 9K 7-26
 
 Next.js 14 + Supabase. Tillar: O'zbek / English / Русский / Türkçe.
 
@@ -10,5 +10,6 @@ Next.js 14 + Supabase. Tillar: O'zbek / English / Русский / Türkçe.
 ## Loginlar
 - O'qituvchi: `Shaxsod-9.26`
 - O'quvchilar: `Ism-9.26` (O'qituvchi → Sozlamalar → Parollarni almashtirish ro'yxatida ko'rinadi)
+- 9K 7-26 guruhi: kurator `Komila-7.26` (hamma fandan davomat, o'quvchilar parollari), o'quvchilar `Ism-7.26`. SQL: `supabase/update-5.sql`.
 
 Environment: `.env.example` ga qarang.

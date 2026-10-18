@@ -70,6 +70,7 @@ const D: Record<string, Entry> = {
   'dash.hello': ['Assalomu alaykum', 'Hello', 'Здравствуйте', 'Merhaba'],
   'dash.attendanceToday': ['Bugungi davomat', "Today's attendance", 'Посещаемость сегодня', 'Bugünkü yoklama'],
   'dash.lastLesson': ['Oxirgi dars: {s}', 'Latest lesson: {s}', 'Последнее занятие: {s}', 'Son ders: {s}'],
+  'dash.curator': ['Kurator · barcha fanlardan davomat', 'Curator · attendance for all subjects', 'Куратор · посещаемость по всем предметам', 'Kürator · tüm derslerin yoklaması'],
   'dash.noneYet': ['Bugun hali davomat olinmagan', 'No attendance taken yet today', 'Сегодня посещаемость ещё не отмечена', 'Bugün henüz yoklama alınmadı'],
   'dash.total': ["Jami o'quvchilar", 'Total students', 'Всего студентов', 'Toplam öğrenci'],
   'dash.present': ['Kelgan', 'Present', 'Присутствуют', 'Gelen'],

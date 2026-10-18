@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { fmtTime } from '@/lib/utils';
 import { useLang } from './LanguageProvider';
+import { useMe } from '@/components/MeProvider';
+import { groupLabel } from '@/lib/schedule';
 import Avatar from './Avatar';
 import Icon from './Icon';
 import { Alert, Segmented, Spinner } from './ui';
@@ -13,6 +15,7 @@ type Msg = { id: string; sender_id: string; recipient_id: string | null; body: s
 
 export default function ChatView() {
   const { t } = useLang();
+  const { groupCode } = useMe();
   const [me, setMe] = useState<string | null>(null);
   const [group, setGroup] = useState<string | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
@@ -144,7 +147,7 @@ export default function ChatView() {
             <Icon name="users" className="h-[18px] w-[18px]" />
           </span>
           <div>
-            <p className="text-[15px] font-semibold leading-tight">{t('chat.groupName')} · 9K 9-26</p>
+            <p className="text-[15px] font-semibold leading-tight">{t('chat.groupName')}{groupCode ? ' · ' + groupLabel(groupCode) : ''}</p>
             <p className="text-xs text-muted">{t('chat.members', { n: people.length + 1 })}</p>
           </div>
         </div>

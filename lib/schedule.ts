@@ -1,9 +1,17 @@
 import type { Lang } from './i18n';
 
-export const GROUP_LABEL = '9K 9-26';
-export const ROOM = '1-B, №404';
+// Every group has its own timetable, label and classroom.
+// The group of the logged-in user (see MeProvider) decides which one is shown.
+export const DEFAULT_GROUP = '9-26';
+const GROUP_INFO: Record<string, { label: string; room: string }> = {
+  '9-26': { label: '9K 9-26', room: '1-B, №404' },
+  '7-26': { label: '9K 7-26', room: '1-B, №202' },
+};
+export const groupLabel = (code: string) => GROUP_INFO[code]?.label ?? '9K ' + code;
+export const roomOf = (code: string) => GROUP_INFO[code]?.room ?? '';
 
-type Opt = { subject: string; teacher: string | null };
+// `room` is set only when the lesson is held somewhere other than the group's usual classroom (e.g. the workshop)
+type Opt = { subject: string; teacher: string | null; room?: string };
 // 1 option = every week. 2 options = [top, bottom] alternating weekly.
 type Cell = { pair: 1 | 2 | 3; opts: Opt[] };
 
@@ -12,14 +20,19 @@ const ABDULLAYEVA = 'Abdullayeva Komila';
 const YAKUBOV = 'Yakubov Vali';
 const KARJ = ISAKOV;
 const SULTONOV = 'Sultonov Farrux';
+const YAKUPOVA = 'Yakupova Muborak';
+const DIYOR = 'Diyor'; // Jismoniy tarbiya (both groups)
+const AMETOV = 'Ametov Xudayshukur';
+const MOYNALI = "Mo'ynali va po'stloq mahsulotlarini ishlab chiqarishni tashkil etish";
+const INTENSIV = 'Intensiv va yaylov chorvachiligi';
 
-const one = (pair: 1 | 2 | 3, subject: string, teacher: string | null): Cell => ({
+const one =(pair: 1 | 2 | 3, subject: string, teacher: string | null): Cell => ({
   pair,
   opts: [{ subject, teacher }],
 });
 
 // Day keys follow Date.getDay(): 1 = Monday ... 6 = Saturday. Only 3 pairs per day.
-export const WEEK: Record<number, Cell[]> = {
+const WEEK_926: Record<number, Cell[]> = {
   1: [
     one(1, 'Kasbiy faoliyatga kirish, mehnat muhofazasi va professional etika', ISAKOV),
     one(2, 'Ingliz tili', ABDULLAYEVA),
@@ -57,29 +70,80 @@ export const WEEK: Record<number, Cell[]> = {
     {
       pair: 3,
       opts: [
-        { subject: 'Jismoniy tarbiya', teacher: "Quliyeva O'g'iljon" },
-        { subject: "Chaqiruvga qadar boshlang'ich tayyorgarlik", teacher: 'Ametov Xudayshukur' },
+        { subject: 'Jismoniy tarbiya', teacher: DIYOR },
+        { subject: "Chaqiruvga qadar boshlang'ich tayyorgarlik", teacher: AMETOV },
       ],
     },
   ],
 };
 
+// 9K 7-26 (Chorvachilik fermasi operatori). The paper timetable has 4 pairs on some days;
+// only the first 3 are used here (same 3 pair times as the other group).
+const WEEK_726: Record<number, Cell[]> = {
+  1: [
+    one(1, 'Tarix', SULTONOV),
+    one(2, "Qishloq xo'jalik hayvonlari anatomiyasi va fiziologiyasi", YAKUPOVA),
+    one(3, 'Zoogigiyena va veterinariya asoslari', YAKUPOVA),
+  ],
+  2: [
+    one(1, 'Matematika', 'Jumabayev Raxul'),
+    one(2, 'Ingliz tili', ABDULLAYEVA),
+    one(3, 'Ona tili va adabiyoti', 'Uskinova Shaxlo'),
+  ],
+  3: [
+    {
+      pair: 1,
+      opts: [
+        { subject: 'Jismoniy tarbiya', teacher: DIYOR },
+        { subject: "Chaqiruvga qadar boshlang'ich tayyorgarlik", teacher: AMETOV },
+      ],
+    },
+    one(2, 'Ingliz tili', ABDULLAYEVA),
+    one(3, 'Hayvonlarini oziqlantirish', YAKUPOVA),
+  ],
+  4: [
+    one(1, 'Ingliz tili', ABDULLAYEVA),
+    one(2, INTENSIV, YAKUPOVA),
+    one(3, 'Tarbiya', 'Tazabayeva Muqaddas'),
+  ],
+  5: [
+    one(1, MOYNALI, YAKUPOVA),
+    one(2, 'Geografiya', 'Davletbayev Kanat'),
+    { pair: 3, opts: [{ subject: "Intensiv va yaylov chorvachilik ishlari O'/A", teacher: null, room: 'Ustaxona' }] },
+  ],
+  6: [
+    one(1, 'Biologiya', 'Xalimbetova Mahbuba'),
+    {
+      pair: 2,
+      opts: [
+        { subject: INTENSIV, teacher: YAKUPOVA },
+        { subject: MOYNALI, teacher: YAKUPOVA },
+      ],
+    },
+    one(3, 'Ingliz tili', ABDULLAYEVA),
+  ],
+};
+
+const TABLES: Record<string, Record<number, Cell[]>> = { '9-26': WEEK_926, '7-26': WEEK_726 };
+
 export type Resolved = {
   pair: number;
   subject: string;
   teacher: string | null;
+  room?: string;
   alternates: boolean;
   other?: Opt;
 };
 
-export function lessonsFor(day: number, week: 'A' | 'B'): Resolved[] {
-  return (WEEK[day] || []).map((c) => {
+export function lessonsFor(day: number, week: 'A' | 'B', group: string = DEFAULT_GROUP): Resolved[] {
+  return ((TABLES[group] || {})[day] || []).map((c) => {
     const alt = c.opts.length > 1;
     const idx = alt && week === 'B' ? 1 : 0;
     return {
       pair: c.pair,
       subject: c.opts[idx].subject,
       teacher: c.opts[idx].teacher,
+      room: c.opts[idx].room,
       alternates: alt,
       other: alt ? c.opts[1 - idx] : undefined,
     };
@@ -109,9 +173,11 @@ export function addDays(d: Date, n: number): Date {
   return x;
 }
 
-export const ALL_SUBJECTS: string[] = Array.from(
-  new Set(Object.values(WEEK).flatMap((cells) => cells.flatMap((c) => c.opts.map((o) => o.subject))))
-);
+// Every subject in a group's timetable (for a curator who marks all subjects)
+export function subjectsOf(group: string = DEFAULT_GROUP): string[] {
+  const t = TABLES[group] || {};
+  return Array.from(new Set(Object.values(t).flatMap((cells) => cells.flatMap((c) => c.opts.map((o) => o.subject)))));
+}
 
 // [en, ru, tr]
 const SUBJECT_TR: Record<string, [string, string, string]> = {
@@ -148,6 +214,36 @@ const SUBJECT_TR: Record<string, [string, string, string]> = {
     'Допризывная начальная подготовка',
     'Askerlik öncesi temel eğitim',
   ],
+  // ----- 9K 7-26 -----
+  "Qishloq xo'jalik hayvonlari anatomiyasi va fiziologiyasi": [
+    'Anatomy and physiology of farm animals',
+    'Анатомия и физиология сельскохозяйственных животных',
+    'Çiftlik hayvanlarının anatomisi ve fizyolojisi',
+  ],
+  'Zoogigiyena va veterinariya asoslari': [
+    'Zoohygiene and basics of veterinary science',
+    'Зоогигиена и основы ветеринарии',
+    'Zoohijyen ve veterinerlik temelleri',
+  ],
+  Matematika: ['Mathematics', 'Математика', 'Matematik'],
+  'Hayvonlarini oziqlantirish': ['Animal feeding', 'Кормление животных', 'Hayvan besleme'],
+  'Intensiv va yaylov chorvachiligi': [
+    'Intensive and pasture livestock farming',
+    'Интенсивное и пастбищное животноводство',
+    'Entansif ve mera hayvancılığı',
+  ],
+  "Mo'ynali va po'stloq mahsulotlarini ishlab chiqarishni tashkil etish": [
+    'Organizing the production of fur and sheepskin products',
+    'Организация производства меховой и овчинной продукции',
+    'Kürk ve koyun postu ürünleri üretiminin organizasyonu',
+  ],
+  Geografiya: ['Geography', 'География', 'Coğrafya'],
+  "Intensiv va yaylov chorvachilik ishlari O'/A": [
+    'Intensive and pasture livestock work (practical training)',
+    'Интенсивное и пастбищное животноводство (практика)',
+    'Entansif ve mera hayvancılığı çalışmaları (uygulama)',
+  ],
+  Biologiya: ['Biology', 'Биология', 'Biyoloji'],
 };
 
 export function subjectLabel(uz: string, lang: Lang): string {
