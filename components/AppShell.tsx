@@ -49,7 +49,7 @@ export default function AppShell({ role, children }: { role: Role; children: Rea
           {isRoot ? (
             <div className="flex items-center gap-2.5">
               <Logo size={32} />
-              <span className="text-[17px] font-bold tracking-tight">SmartAttend</span>
+              <span className="text-[17px] font-bold tracking-tight">Smart<span className="text-brand">Attend</span></span>
             </div>
           ) : (
             <Link href={parent} className="-ml-2 flex items-center gap-1 rounded-lg px-2 py-1.5 text-[15px] font-semibold text-brand">

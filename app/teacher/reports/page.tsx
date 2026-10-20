@@ -164,7 +164,9 @@ export default function ReportsPage() {
                     <span className={'text-base font-bold ' + tone}>{s.percent}%</span>
                   </div>
                   <p className="mt-1 text-xs text-muted">
-                    {STATUS_ORDER.map((st) => `${t('status.' + st)} ${(s as any)[st]}`).join(' · ')} · {t('rep.total')}: {s.total}
+                    {STATUS_ORDER.filter((st) => st === 'present' || st === 'absent' || (s as any)[st] > 0)
+                      .map((st) => `${st === 'present' ? t('att.present') : st === 'absent' ? t('att.absent') : t('status.' + st)} ${(s as any)[st]}`)
+                      .join(' · ')} · {t('rep.total')}: {s.total}
                   </p>
                 </div>
               );

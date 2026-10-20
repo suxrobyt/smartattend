@@ -3,7 +3,7 @@ import type { SVGProps } from 'react';
 export type IconName =
   | 'home' | 'calendar' | 'check-circle' | 'message' | 'settings' | 'users' | 'chart'
   | 'history' | 'clipboard' | 'eye' | 'eye-off' | 'logout' | 'key' | 'globe' | 'send'
-  | 'chevron-right' | 'chevron-left' | 'user' | 'download' | 'copy' | 'check' | 'search' | 'pin';
+  | 'chevron-right' | 'chevron-left' | 'user' | 'download' | 'copy' | 'check' | 'x' | 'search' | 'pin' | 'trash' | 'user-check' | 'flag' | 'minus';
 
 const P: Record<IconName, JSX.Element> = {
   home: (<><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5" /></>),
@@ -27,6 +27,11 @@ const P: Record<IconName, JSX.Element> = {
   download: <path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16" />,
   copy: (<><rect x="9" y="9" width="11" height="11" rx="2.5" /><path d="M5 15V6a2 2 0 0 1 2-2h9" /></>),
   check: <path d="m5 12.5 4.5 4.5L19 7" />,
+  x: <path d="M6 6l12 12M18 6 6 18" />,
+  minus: <path d="M6 12h12" />,
+  trash: (<><path d="M4 7h16M10 11v6M14 11v6" /><path d="M6 7l1 12a2 2 0 0 0 2 1.8h6a2 2 0 0 0 2-1.8L18 7" /><path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7" /></>),
+  'user-check': (<><circle cx="9.5" cy="8" r="3.5" /><path d="M2.5 20v-1A5.5 5.5 0 0 1 8 13.5h3" /><path d="m15 17 2.2 2.2L21.5 15" /></>),
+  flag: (<><path d="M5 21V4" /><path d="M5 4.5h11.5l-2 4 2 4H5" /></>),
   search: (<><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>),
   pin: (<><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" /><circle cx="12" cy="9.5" r="2.5" /></>),
 };

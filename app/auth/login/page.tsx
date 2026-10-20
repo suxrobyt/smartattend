@@ -48,7 +48,7 @@ export default function LoginPage() {
   return (
     <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col justify-center px-5 py-10">
       <div className="mb-8 text-center">
-        <Logo full size={176} />
+        <Logo full size={224} />
         <h1 className="sr-only">SmartAttend</h1>
         <p className="mt-4 text-sm text-muted">{t('login.subtitle')}</p>
       </div>

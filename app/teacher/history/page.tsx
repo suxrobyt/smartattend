@@ -64,9 +64,9 @@ export default function HistoryPage() {
                   <span className="shrink-0 text-xs text-muted">{fmtDate(s.session_date)}</span>
                 </div>
                 <div className="mt-2.5 flex flex-wrap gap-1.5">
-                  {STATUS_ORDER.map((st) => (
+                  {STATUS_ORDER.filter((st) => st === 'present' || st === 'absent' || countFor(s.id, st) > 0).map((st) => (
                     <span key={st} className={'rounded-full border px-2 py-0.5 text-xs font-medium ' + STATUS_SOFT[st]}>
-                      {t('status.' + st)} {countFor(s.id, st)}
+                      {st === 'present' ? t('att.present') : st === 'absent' ? t('att.absent') : t('status.' + st)} {countFor(s.id, st)}
                     </span>
                   ))}
                   {s.status === 'active' && <span className="chip !border-warn/30 !text-warn">{t('hist.active')}</span>}

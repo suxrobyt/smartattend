@@ -56,6 +56,8 @@ export default function TeacherDashboard() {
   const counts = q.data?.counts || { present: 0, late: 0, absent: 0, excused: 0 };
   const last = sessions[0];
   const attended = counts.present + counts.late;
+  // Teachers mark only Bor / Yo'q now; late / excused tiles appear only when old records have them
+  const shown = STATUS_ORDER.filter((s) => s === 'present' || s === 'absent' || counts[s] > 0);
   const rate = total ? Math.round((attended / total) * 100) : 0;
   // A subject teacher sees only his/her own lessons here (the full timetable is on the Schedule tab)
   const lessons = (now && groupCode ? lessonsFor(now.getDay(), weekType(now), groupCode) : []).filter((l) => !mine || mine.includes(l.subject));
@@ -100,13 +102,13 @@ export default function TeacherDashboard() {
                 {attended}/{total}
               </span>
             </div>
-            <div className="mt-4 grid grid-cols-4 gap-2">
-              {STATUS_ORDER.map((s) => (
+            <div className={'mt-4 grid gap-2 ' + (shown.length === 2 ? 'grid-cols-2' : shown.length === 3 ? 'grid-cols-3' : 'grid-cols-4')}>
+              {shown.map((s) => (
                 <div key={s} className="rounded-xl border border-line bg-surface-2/60 px-2 py-2.5 text-center">
                   <p className="text-xl font-bold">{counts[s]}</p>
                   <p className="mt-0.5 flex items-center justify-center gap-1 text-[11px] text-muted">
                     <span className={'h-1.5 w-1.5 rounded-full ' + STATUS_DOT[s]} />
-                    {t('status.' + s)}
+                    {s === 'present' ? t('att.present') : s === 'absent' ? t('att.absent') : t('status.' + s)}
                   </p>
                 </div>
               ))}
